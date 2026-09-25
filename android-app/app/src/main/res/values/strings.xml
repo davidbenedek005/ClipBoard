@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ClipBoard</string>
+    <string name="accessibility_service_description">ClipBoard reads text and images you copy so they can sync to your Windows PC. It is not a screen reader. Android 10 and later block clipboard access for ordinary background apps, so this personal sideload uses an accessibility service to see copies while ClipBoard is in the background. You can turn it off at any time in these settings.</string>
+    <string name="notification_channel_name">Clipboard listener</string>
+    <string name="notification_channel_description">Shows whether ClipBoard is watching for copies. Low priority, no sound.</string>
+    <string name="tile_label">Send to PC</string>
+</resources>

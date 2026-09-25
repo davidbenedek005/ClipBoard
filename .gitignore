@@ -1,0 +1,36 @@
+# .NET / Visual Studio
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+TestResults/
+[Dd]ebug/
+[Rr]elease/
+*.nupkg
+project.lock.json
+
+# Rider / VS Code
+.idea/
+*.iml
+
+# Android / Gradle
+.gradle/
+local.properties
+**/captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.keystore
+!debug.keystore
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# App logs (runtime writes under %LOCALAPPDATA%\ClipBoard)
+*.log

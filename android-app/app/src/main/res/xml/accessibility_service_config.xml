@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The system Accessibility settings screen shows @string/accessibility_service_description.
+  canRetrieveWindowContent is required by the platform and by several OEMs before they
+  treat the service as allowed to call ClipboardManager.getPrimaryClip().
+  This app does not read window text; the flag exists for that clipboard exemption.
+
+  typeWindowStateChanged and typeViewTextSelectionChanged are the spec's event filter.
+  They are not a reliable "user pressed Copy" signal by themselves (see the service KDoc).
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeViewTextSelectionChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/accessibility_service_description"
+    android:notificationTimeout="100"
+    android:settingsActivity="com.david.clipboardsync.MainActivity" />

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ClipBoardSyncMessage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "type", "originDeviceId", "contentHash", "timestamp", "payload", "encryption"],
+  "properties": {
+    "version": { "const": 1 },
+    "type": { "enum": ["text", "image"] },
+    "originDeviceId": { "type": "string", "minLength": 1 },
+    "contentHash": {
+      "type": "string",
+      "description": "Lowercase hex SHA-256 of the plaintext bytes that were encrypted.",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "payload": {
+      "type": "string",
+      "description": "Base64 of the AES-256-GCM ciphertext only. The tag is encryption.authTag, not appended.",
+      "contentEncoding": "base64"
+    },
+    "encryption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["iv", "authTag"],
+      "properties": {
+        "iv": { "type": "string", "contentEncoding": "base64", "description": "12-byte nonce" },
+        "authTag": { "type": "string", "contentEncoding": "base64", "description": "16-byte GCM tag" }
+      }
+    }
+  },
+  "x-key-derivation": {
+    "algorithm": "HKDF-SHA256",
+    "salt": "clipboardsync-v1",
+    "info": "clipboard-payload",
+    "outputBytes": 32,
+    "ikm": "UTF-8 pairing token"
+  },
+  "x-plaintext": {
+    "text": "UTF-8 text",
+    "image": "UTF-8 string containing standard base64 of the PNG or JPEG bytes"
+  },
+  "x-pairing-qr": {
+    "v": 1,
+    "ip": "LAN IPv4 of the Windows host",
+    "port": 53211,
+    "token": "pairing token, also sent as the X-Clipboard-Token header on the WebSocket upgrade"
+  }
+}

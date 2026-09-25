@@ -1,0 +1,134 @@
+Phase 4).
+- **Encrypt payloads** with AES-256-GCM using a key derived from the pairing token (e.g., via PBKDF2 or HKDF) — do this even on a local network, since clipboard data is frequently sensitive.
+- Every message carries an `originDeviceId`. Each device **ignores incoming messages whose content hash matches something it just sent**, to prevent an infinite echo loop (PC copies → sends to phone → phone writes to its clipboard → phone's clipboard-changed listener fires → phone sends back to PC → ...).
+
+---
+
+## 2. PROJECT ARCHITECTURE — MONOREPO FOLDER STRUCTURE
+
+Initialize a single Git repository with this structure:
+
+```
+clipboard-sync/
+├── README.md
+├── docs/
+│   ├── architecture.md
+│   ├── protocol.md                # JSON message schema, versioned
+│   └── SETUP.md                   # human walkthrough: build, install, pair
+│
+├── windows-app/
+│   ├── ClipboardSync.sln
+│   └── ClipboardSync.App/
+│       ├── App.xaml / App.xaml.cs
+│       ├── TrayIconManager.cs         # NotifyIcon + context menu (Status/Pair/Settings/Exit)
+│       ├── ClipboardMonitor.cs        # WM_CLIPBOARDUPDATE listener
+│       ├── Services/
+│       │   ├── ClipboardWebSocketServer.cs
+│       │   ├── PairingService.cs      # generates QR + pairing token
+│       │   ├── DiscoveryService.cs    # mDNS advertisement
+│       │   └── EncryptionService.cs   # AES-GCM helpers
+│       ├── Models/
+│       │   └── ClipboardPayload.cs
+│       ├── Views/
+│       │   ├── PairingWindow.xaml     # shows QR code
+│       │   └── SettingsWindow.xaml
+│       └── Resources/
+│
+├── android-app/
+│   ├── settings.gradle.kts
+│   └── app/
+│       ├── src/main/AndroidManifest.xml
+│       ├── src/main/res/xml/accessibility_service_config.xml
+│       └── src/main/java/com/yourname/clipboardsync/
+│           ├── MainActivity.kt
+│           ├── service/
+│           │   ├── ClipboardAccessibilityService.kt
+│           │   ├── ClipboardForegroundService.kt
+│           │   └── ClipboardReceiverService.kt   # writes PC content into Android clipboard
+│           ├── network/
+│           │   ├── SyncWebSocketClient.kt
+│           │   ├── DiscoveryManager.kt           # NSD
+│           │   └── PairingManager.kt             # QR scan + token storage
+│           ├── crypto/EncryptionUtil.kt
+│           └── ui/                                # Compose screens: Onboarding, Pairing, Status, Settings
+│
+└── shared/
+    └── protocol-schema.json      # canonical JSON schema, source of truth for both clients
+```
+
+Note: Cursor can author all code in both `windows-app/` and `android-app/`, but the human will still need **Android Studio** (for the emulator, Gradle sync, and signing) and **Visual Studio / `dotnet` CLI** to actually build and run each side — Cursor is not expected to invoke Gradle/MSBuild toolchains directly unless its environment supports it.
+
+---
+
+## 3. THE CORE CHALLENGE: ANDROID 10+ BACKGROUND CLIPBOARD RESTRICTION
+
+**Explain this to the user in the app's onboarding UI, and implement exactly this solution.**
+
+### 3.1 The restriction, precisely
+Since Android 10, `ClipboardManager.getPrimaryClip()` returns `null`/empty for any app that is **not the default IME, not the currently focused window, and not the app that itself set the clip**. A plain background service or even a `ForegroundService` **does not**, by itself, get an exemption — this is what breaks the naive "just poll the clipboard from a service" approach.
+
+### 3.2 The required workaround
+Combine three pieces:
+
+1. **`AccessibilityService`** — This is the actual bypass. Apps with an enabled `AccessibilityService` receive elevated context that is exempt from the foreground-only clipboard restriction, because the OS treats accessibility tooling as needing awareness of on-screen/copied content. This is the same technique used by clipboard-manager apps on the Play Store (e.g., Clipt, ClipStack).
+   - Register `ClipboardAccessibilityService` listening for `TYPE_WINDOW_STATE_CHANGED` and `TYPE_VIEW_TEXT_SELECTION_CHANGED` events (these fire constantly as the user navigates and copies text in any app).
+   - On each relevant event, call `clipboardManager.primaryClip`, hash the content, and if it differs from the last-sent hash, dispatch it over the network.
+   - `res/xml/accessibility_service_config.xml` must include `android:canRetrieveWindowContent="true"` and a clear `android:description` explaining to the user *why* this permission is requested (required for the system Accessibility settings screen, and for Play Store policy compliance if ever published — see §3.4).
+   - **This cannot be enabled programmatically.** Build an onboarding screen that deep-links to `Settings.ACTION_ACCESSIBILITY_SETTINGS` and clearly instructs the user to toggle it on manually.
+
+2. **`ForegroundService`** with a persistent, low-priority notification — this keeps the process alive and unlikely to be killed by Doze/App Standby, and is where you show live sync status ("Connected to DESKTOP-PC" / "Disconnected"). Also prompt the user (via `Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)`) to exclude the app from battery optimization — this matters especially on Samsung/One UI, which is more aggressive than stock Android about killing background apps.
+
+3. **Writing TO the Android clipboard (PC → phone direction) has no such restriction.** `ClipboardManager.setPrimaryClip()` works from any context, foreground or background. So the receive-direction (`ClipboardReceiverService`) is simple by comparison — implement it first as a sanity check of the network layer before tackling the accessibility-service side.
+
+### 3.3 Fallback UX for reliability
+Even with the above, treat "fully automatic" as the 90% case, not a 100% guarantee (OEM battery managers can still be unpredictable). Add a lightweight manual fallback:
+- A **Quick Settings Tile** ("Sync Clipboard Now") the user can tap to force-send the current clipboard.
+- Optionally, a small floating action bubble (using `TYPE_APPLICATION_OVERLAY`, requesting `SYSTEM_ALERT_WINDOW`) that appears briefly after a copy is detected, confirming "Sent to PC ✓" — this also reassures the user the automatic path is working.
+
+### 3.4 Important caveat to surface to the user
+Using `AccessibilityService` purely for clipboard access is against Google Play's Accessibility API policy for apps whose *primary* function isn't accessibility, and such apps are frequently rejected or removed from the Play Store. **This is fine and works well for a personal/sideloaded APK** (which is this project's actual use case), but flag explicitly in `docs/architecture.md` that Play Store distribution would require either: (a) a strong, honest accessibility-use justification in the Play Console (often still rejected for this use case), or (b) re-architecting the Android app as a **custom IME (keyboard)**, since default IMEs are also exempt from the clipboard restriction — a heavier lift, but Play-compliant. Build the AccessibilityService approach for now; document the IME alternative as future work.
+
+---
+
+## 4. STEP-BY-STEP IMPLEMENTATION PLAN
+
+Work through these phases **in order**. Do not begin a phase until the previous one is confirmed working.
+
+### Phase 0 — Repo & Environment Setup
+- `git init`, create the full folder structure from §2, add a root `.gitignore` covering both `.NET`/Visual Studio artifacts and Android Studio/Gradle artifacts (`bin/`, `obj/`, `.gradle/`, `local.properties`, `*.apk`, etc.).
+- Write `README.md` with a one-paragraph project summary and links to `docs/SETUP.md` and `docs/architecture.md`.
+- Create `shared/protocol-schema.json` as an empty stub — fill it in during Phase 3.
+
+### Phase 1 — Windows Desktop Listener (build and test this fully standalone first)
+1. Create the WPF project; hide the `MainWindow` on startup (`ShowInTaskbar = false`, `WindowState = Minimized`, or don't show it at all).
+2. Implement `TrayIconManager` with a `NotifyIcon`/`Hardcodet.NotifyIcon.Wpf` and a context menu: **Status**, **Show Pairing QR**, **Settings**, **Exit**.
+3. Implement `ClipboardMonitor`: hook a hidden `HwndSource` window procedure, call `AddClipboardFormatListener`, and handle `WM_CLIPBOARDUPDATE` to detect both text (`Clipboard.GetText`) and image (`Clipboard.GetImage` / DIB format) changes — no polling.
+4. Stub out `ClipboardWebSocketServer` for now (log detected clipboard changes to the console/a debug window). Confirm text and image copy events are reliably detected before moving on.
+5. **Checkpoint:** running the app should sit quietly in the tray and log every clipboard change you make on the PC.
+
+### Phase 2 — Android Client & the Accessibility Workaround
+1. Create the Android Studio project (Kotlin, Compose, min SDK 26).
+2. Build the onboarding flow (Compose screens): request `POST_NOTIFICATIONS` (Android 13+), deep-link to enable the Accessibility Service, deep-link to request battery-optimization exemption.
+3. Implement `ClipboardAccessibilityService` per §3.2 — for now, just log the detected clipboard text/image to Logcat and show it in a simple debug UI. Confirm it fires reliably as you copy text in various other apps (Chrome, Messages, Notes) **with the screen unlocked and ClipBoard not in the foreground**.
+4. Implement `ClipboardForegroundService` with the persistent status notification.
+5. Implement `ClipboardReceiverService` stub (log what it would write).
+6. **Checkpoint:** with only the phone running, copying text anywhere on the phone should be detected and logged by the accessibility service, without the ClipBoard app being open.
+
+### Phase 3 — Network Layer & Pairing
+1. Finalize `shared/protocol-schema.json` (see §5) and mirror it as `ClipboardPayload.cs` (Windows) and a Kotlin data class (Android).
+2. Windows: implement `ClipboardWebSocketServer` (Fleck or `HttpListener`-based), listening on a fixed local port (e.g., `53211`). Implement `PairingService` to generate a random pairing token and render a QR code (`{ip, port, token}`) via QRCoder in `PairingWindow.xaml`.
+3. Android: implement QR scanning (`PairingManager`, CameraX + ML Kit) to capture `{ip, port, token}` and persist it (`EncryptedSharedPreferences`). Implement `SyncWebSocketClient` (OkHttp) connecting to that `ip:port`, sending the token in the handshake for auth.
+4. Wire real messages through: Windows `ClipboardMonitor` → `ClipboardWebSocketServer` → Android `SyncWebSocketClient` → `ClipboardReceiverService` → `ClipboardManager.setPrimaryClip`, and the reverse direction from `ClipboardAccessibilityService` → Android client → Windows server → `Clipboard.SetText/SetImage`.
+5. Implement `EncryptionService`/`EncryptionUtil` (AES-256-GCM, key derived from the pairing token) on both ends; encrypt every payload.
+6. Implement the origin-hash echo-loop guard described in §1.4.
+7. Add reconnect-with-exponential-backoff on the Android client for Wi-Fi drops/PC restarts.
+8. **Checkpoint:** copy text on the phone, confirm it's pasteable on the PC within ~1 second, and vice versa, with the phone app fully backgrounded.
+
+### Phase 4 — Robustness, Images, and Polish
+1. Implement image handling end-to-end: compress/resize large images before Base64 encoding (cap at a sane size, e.g., 5 MB after compression); chunk the WebSocket message if needed.
+2. Add Settings screens on both platforms: toggle text-only vs. text+images, view recent sync history, re-pair/disconnect.
+3. Add the Quick Settings Tile and/or floating "Sent ✓" confirmation bubble from §3.3.
+4. Implement mDNS discovery (`DiscoveryService` on Windows, `DiscoveryManager`/`NsdManager` on Android) so reconnection survives PC IP changes without re-scanning the QR code.
+5. Handle edge cases: clipboard access denied, accessibility service disabled after initial setup (detect and re-prompt), server port already in use, malformed/oversized payloads.
+
+### 
