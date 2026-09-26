@@ -7,6 +7,12 @@ public sealed class AppSettings
 {
     public bool SyncImages { get; set; } = true;
 
+    /// <summary>Name other devices see. Empty uses the Windows computer name.</summary>
+    public string DeviceName { get; set; } = "";
+
+    public string DisplayName =>
+        string.IsNullOrWhiteSpace(DeviceName) ? Environment.MachineName : DeviceName.Trim();
+
     public static AppSettings Load()
     {
         try

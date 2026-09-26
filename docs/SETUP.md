@@ -17,14 +17,12 @@ dotnet build windows-app\ClipboardSync.sln
 dotnet run --project windows-app\ClipboardSync.App
 ```
 
-The process does not open a taskbar window. Look for the blue clipboard icon in the system tray (the overflow area, if it is not pinned).
+The process starts in the tray. Look for the blue clipboard icon in the system tray (the overflow area, if it is not pinned).
 
-| Tray item | What it does in Phase 1 |
+| Tray action | What it does |
 | --- | --- |
-| Left-click, or **Status** | Opens the debug log of clipboard changes |
-| **Show Pairing QR** | Placeholder. QR pairing is Phase 3 |
-| **Settings** | Placeholder. Settings are Phase 4 |
-| **Exit** | Removes the tray icon and stops the listener |
+| Left-click | Opens the ClipBoard window (Sync history, Pairing, Settings). Closing the window hides it again |
+| Right-click → **Exit** | Removes the tray icon and stops the app |
 
 ## Confirm clipboard detection
 
@@ -51,9 +49,9 @@ Open the `android-app` folder in Android Studio (not the repo root) and run the 
 
 On the phone:
 
-1. Allow notifications.
-2. Open accessibility settings from the app and turn ClipBoard on. The system screen shows why the service is requested.
-3. Accept the battery exemption. On One UI, also set ClipBoard to Unrestricted and remove it from Sleeping apps.
+1. Open accessibility settings from the app and turn ClipBoard on. The system screen shows why the service is requested.
+2. Accept the battery exemption. On One UI, also set ClipBoard to Unrestricted and remove it from Sleeping apps.
+3. Skip notifications. The app never asks for that permission; all feedback is by toast.
 4. Leave ClipBoard and copy text in Chrome, Messages, or Notes.
 5. Open ClipBoard again. The copy should appear under **Detected copies**. Logcat tag `ClipBoardA11y` should show the same line from when the app was backgrounded.
 6. **Simulate PC text** only writes a log line. It does not change the phone clipboard.
@@ -63,8 +61,8 @@ On the phone:
 Both devices must be on the same Wi-Fi. The PC listens on port **53211**. Clipboard bytes are AES-256-GCM. The WebSocket itself is cleartext (`ws://`), which Android allows because the app sets `usesCleartextTraffic`.
 
 1. Restart the Windows tray app so it picks up this build: `dotnet run --project windows-app\ClipboardSync.App`
-2. Tray menu → **Show Pairing QR**. If Windows Firewall asks, allow ClipBoard on private networks.
-3. On the phone, install the updated app. Scan the QR with the phone camera, or open **Manual connection** and type the IP, port, and token.
+2. Left-click the tray icon and open **Pairing**. If Windows Firewall asks, allow ClipBoard on private networks.
+3. On the phone, install the updated app. Scan the QR with the phone camera (**Pairing → Open camera**), or type the IP, port, and token under **Manual connection**.
 4. The phone notification should change to **Connected**. The PC status tooltip should say the phone is connected.
 5. Copy text on the phone, then open ClipBoard. Paste on the PC. Phone → PC waits for that foreground open.
 6. Copy text on the PC. Paste on the phone.

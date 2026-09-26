@@ -2,6 +2,7 @@ package com.david.clipboardsync
 
 import android.content.ClipboardManager
 import android.content.Context
+import android.net.Uri
 import android.widget.Toast
 
 /**
@@ -13,16 +14,39 @@ object ClipboardPublisher {
         val clip = context.getSystemService(ClipboardManager::class.java).primaryClip ?: return false
         val image = imageJpeg(context, clip)
         if (image != null) {
-            ClipboardRepository.publish(OutgoingClip.Image(image))
-            Toast.makeText(context, "Image copied to ClipBoard", Toast.LENGTH_SHORT).show()
+            publishJpeg(context, image)
             return true
         }
         val text = (0 until clip.itemCount).firstNotNullOfOrNull { index ->
             clip.getItemAt(index).text?.toString()?.takeIf { it.isNotEmpty() }
         } ?: return false
+        publishText(context, text)
+        return true
+    }
+
+    fun publishText(context: Context, text: String) {
         ClipboardRepository.publish(OutgoingClip.Text(text))
         Toast.makeText(context, "Message copied to ClipBoard", Toast.LENGTH_SHORT).show()
+    }
+
+    /**
+     * Reads [uri] on the calling thread. Share and text-selection URI grants end when the
+     * receiving activity finishes, so callers read before calling finish().
+     */
+    fun publishImage(context: Context, uri: Uri): Boolean {
+        val raw = try {
+            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        } catch (_: Exception) {
+            null
+        } ?: return false
+        val jpeg = ImageCodec.toJpeg(raw) ?: return false
+        publishJpeg(context, jpeg)
         return true
+    }
+
+    private fun publishJpeg(context: Context, jpeg: ByteArray) {
+        ClipboardRepository.publish(OutgoingClip.Image(jpeg))
+        Toast.makeText(context, "Image copied to ClipBoard", Toast.LENGTH_SHORT).show()
     }
 
     private fun imageJpeg(context: Context, clip: android.content.ClipData): ByteArray? {

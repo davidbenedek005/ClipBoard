@@ -1,45 +1,41 @@
 package com.david.clipboardsync
 
-import android.Manifest
+import android.app.DownloadManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.os.Build
+import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.david.clipboardsync.network.PairingManager
 import com.david.clipboardsync.network.SyncController
 import com.david.clipboardsync.service.ClipboardForegroundService
 import com.david.clipboardsync.service.ClipboardReceiverService
-import com.david.clipboardsync.ui.ManualConnectionScreen
-import com.david.clipboardsync.ui.OnboardingScreen
-import com.david.clipboardsync.ui.SettingsScreen
+import com.david.clipboardsync.ui.MainScreen
+import com.david.clipboardsync.ui.MainTab
+import com.david.clipboardsync.ui.theme.ClipBoardTheme
 
 class MainActivity : ComponentActivity() {
 
     private var resumeTick by mutableIntStateOf(0)
-    private var showManual by mutableStateOf(false)
-    private var showSettings by mutableStateOf(false)
+    private var selectedTab by mutableStateOf(MainTab.History)
     private var syncImages by mutableStateOf(true)
 
-    private val notificationPermission = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        if (granted) {
-            ClipboardForegroundService.start(this)
+    /** The picker grant only lasts while this activity is alive, so FilePublisher opens the descriptor right away. */
+    private val pickFile = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            FilePublisher.publish(this, uri)
         }
-        resumeTick++
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,59 +43,44 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val history by SyncHistory.items.collectAsStateWithLifecycle()
+            val transfers by FileTransfers.active.collectAsStateWithLifecycle()
             val linkStatus by ClipboardRepository.linkStatus.collectAsStateWithLifecycle()
-            val notifications = PermissionStatus.notificationsGranted(this)
-            val accessibility = PermissionStatus.accessibilityEnabled(this)
-            val battery = PermissionStatus.batteryUnrestricted(this)
-            key(resumeTick) {
-            MaterialTheme {
-                Surface {
-                    if (showSettings) {
-                        SettingsScreen(
-                            syncImages = syncImages,
-                            paired = SyncController.loadPairing(this@MainActivity) != null,
-                            onSyncImages = {
-                                syncImages = it
-                                AppSettings(this@MainActivity).syncImages = it
-                            },
-                            onDisconnect = {
-                                SyncController.disconnect(this@MainActivity)
-                                showSettings = false
-                                resumeTick++
-                            },
-                            onClose = { showSettings = false },
-                        )
-                    } else if (showManual) {
-                        ManualConnectionScreen(
-                            onConnect = ::onManualPairing,
-                            onClose = { showManual = false },
-                        )
-                    } else {
-                    OnboardingScreen(
-                        notificationsGranted = notifications,
-                        accessibilityEnabled = accessibility,
-                        batteryUnrestricted = battery,
-                        connectionStatus = linkStatus,
-                        connected = linkStatus == "Successfully connected",
-                        history = history,
-                        onDisconnect = {
-                            SyncController.disconnectLink()
-                        },
-                        onConnect = ::onManualPairing,
-                        onCopyText = { text ->
-                            com.david.clipboardsync.service.ClipboardReceiverService.applyText(this@MainActivity, text)
-                        },
-                        onCopyImage = { jpeg ->
-                            com.david.clipboardsync.service.ClipboardReceiverService.applyImage(this@MainActivity, jpeg)
-                        },
-                        onRequestNotifications = ::requestNotifications,
-                        onOpenAccessibilitySettings = ::openAccessibilitySettings,
-                        onRequestBatteryExemption = ::requestBatteryExemption,
-                        onOpenSettings = { showSettings = true },
-                    )
-                    }
-                }
-            }
+            val accessibility = remember(resumeTick) { PermissionStatus.accessibilityEnabled(this) }
+            val battery = remember(resumeTick) { PermissionStatus.batteryUnrestricted(this) }
+            val paired = remember(resumeTick) { SyncController.loadPairing(this) != null }
+            ClipBoardTheme {
+                MainScreen(
+                    selectedTab = selectedTab,
+                    onSelectTab = { selectedTab = it },
+                    connected = linkStatus == "Successfully connected",
+                    paired = paired,
+                    history = history,
+                    syncImages = syncImages,
+                    accessibilityEnabled = accessibility,
+                    batteryUnrestricted = battery,
+                    onCopyText = { text -> ClipboardReceiverService.applyText(this@MainActivity, text) },
+                    onCopyImage = { jpeg -> ClipboardReceiverService.applyImage(this@MainActivity, jpeg) },
+                    onDeleteItem = SyncHistory::remove,
+                    onClearHistory = SyncHistory::clear,
+                    transfers = transfers,
+                    onSendFile = { pickFile.launch(arrayOf("*/*")) },
+                    onCancelTransfer = FileTransfers::cancel,
+                    onOpenFile = ::openReceivedFile,
+                    onOpenDownloads = ::openDownloads,
+                    onScanQr = ::openCamera,
+                    onConnect = ::onManualPairing,
+                    onDisconnect = { SyncController.disconnectLink() },
+                    onSyncImages = {
+                        syncImages = it
+                        AppSettings(this@MainActivity).syncImages = it
+                    },
+                    onOpenAccessibilitySettings = ::openAccessibilitySettings,
+                    onRequestBatteryExemption = ::requestBatteryExemption,
+                    onForgetPc = {
+                        SyncController.disconnect(this@MainActivity)
+                        resumeTick++
+                    },
+                )
             }
         }
         handlePairingIntent(intent)
@@ -115,9 +96,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         resumeTick++
-        if (PermissionStatus.accessibilityEnabled(this) &&
-            PermissionStatus.notificationsGranted(this)
-        ) {
+        // POST_NOTIFICATIONS is never requested. Without it Android 13+ still runs the
+        // foreground service and only hides its notification.
+        if (PermissionStatus.accessibilityEnabled(this)) {
             ClipboardForegroundService.start(this)
         }
         SyncController.ensureStarted(this)
@@ -128,7 +109,7 @@ class MainActivity : ComponentActivity() {
         if (data.scheme != "clipboardsync" || data.host != "pair") {
             return
         }
-        showManual = false
+        selectedTab = MainTab.Pairing
         try {
             PairingManager(this).saveFromQr(data.toString())
             SyncController.onPaired(this)
@@ -140,7 +121,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun onManualPairing(ip: String, port: Int, token: String) {
-        showManual = false
         try {
             PairingManager(this).saveManual(ip, port, token)
             SyncController.onPaired(this)
@@ -149,6 +129,35 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, "Check the IP, port, and token from the PC.", Toast.LENGTH_LONG).show()
         }
         resumeTick++
+    }
+
+    /** The system camera reads the PC's QR and opens the clipboardsync:// deep link back into this activity. */
+    private fun openCamera() {
+        try {
+            startActivity(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA))
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, "Open the camera app and scan the QR code on the PC.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun openReceivedFile(item: HistoryItem.FileItem) {
+        val uri = item.uri?.let(Uri::parse) ?: return
+        val view = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, item.mimeType)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        try {
+            startActivity(view)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, "No app on this phone can open ${item.fileName}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun openDownloads() {
+        try {
+            startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS))
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, "Open the Files app to find Downloads", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun openAccessibilitySettings() {
@@ -162,15 +171,6 @@ class MainActivity : ComponentActivity() {
             }
         }
         startActivity(PermissionStatus.accessibilitySettingsList())
-    }
-
-    private fun requestNotifications() {
-        if (Build.VERSION.SDK_INT < 33) {
-            Toast.makeText(this, "Notifications do not need a runtime prompt on this Android version.", Toast.LENGTH_SHORT).show()
-            ClipboardForegroundService.start(this)
-            return
-        }
-        notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     private fun requestBatteryExemption() {

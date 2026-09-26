@@ -1,4 +1,6 @@
-﻿using System.Windows;
+﻿using System.IO;
+using System.Windows;
+using System.Windows.Media.Imaging;
 using ClipboardSync.App.Models;
 using ClipboardSync.App.Services;
 using ClipboardSync.App.Views;
@@ -6,8 +8,8 @@ using ClipboardSync.App.Views;
 namespace ClipboardSync.App;
 
 /// <summary>
-/// Tray-only process. <see cref="ShutdownMode.OnExplicitShutdown"/> is set in
-/// App.xaml so closing Status, Pairing, or Settings does not exit.
+/// Tray process. <see cref="ShutdownMode.OnExplicitShutdown"/> is set in
+/// App.xaml so closing the main window hides it instead of exiting.
 /// </summary>
 public partial class App : Application
 {
@@ -22,6 +24,12 @@ public partial class App : Application
     private AppSettings? _settings;
     private SyncHistory? _history;
     private DiscoveryService? _discovery;
+    private LanDiscovery? _lan;
+    private UpstreamClient? _upstream;
+    private MainWindow? _main;
+    private readonly FileTransferTracker _transfers = new();
+    private string _lastStatus = "Waiting for a device";
+    private string _hubStatus = "Not joined to another PC.";
 
     public ClipboardEventLog EventLog { get; } = new();
 
@@ -53,8 +61,51 @@ public partial class App : Application
         _pairing = new PairingService();
         _settings = AppSettings.Load();
         _history = new SyncHistory();
-        _server = new ClipboardWebSocketServer(EventLog, _pairing, _echo, _history, _settings);
-        _server.StatusChanged += status => Dispatcher.Invoke(() => _tray?.SetStatusText(status));
+        _server = new ClipboardWebSocketServer(EventLog, _pairing, _echo, _history, _settings, _transfers);
+        _server.PinRequested += challenge => Dispatcher.BeginInvoke(() =>
+        {
+            ShowMain();
+            PinPrompt.Show(challenge);
+        });
+        _server.PinCleared += id => Dispatcher.BeginInvoke(() => PinPrompt.Close(id));
+        _server.TextFromClient += text => _upstream?.ForwardText(text);
+        _server.ImageFromClient += jpeg => _upstream?.ForwardImage(jpeg);
+        _upstream = new UpstreamClient(_pairing, _settings, _echo, _history, _transfers, EventLog);
+        _upstream.PinNeeded += () => Dispatcher.BeginInvoke(() =>
+        {
+            ShowMain();
+            _main?.PromptForPin();
+        });
+        _upstream.StatusChanged += status => Dispatcher.BeginInvoke(() =>
+        {
+            _hubStatus = status;
+            _main?.SetHubStatus(status);
+        });
+        _upstream.TextReceived += (name, text) => Dispatcher.Invoke(() => ApplyUpstreamText(name, text));
+        _upstream.ImageReceived += (name, jpeg) => Dispatcher.Invoke(() => ApplyUpstreamImage(name, jpeg));
+        try
+        {
+            _lan = new LanDiscovery(_pairing.DeviceId, () => _settings.DisplayName);
+        }
+        catch (Exception ex)
+        {
+            EventLog.Write("LAN discovery did not start: " + ex.Message);
+        }
+
+        _upstream.ConnectSaved();
+        _server.FileReceived += name => Dispatcher.BeginInvoke(() =>
+        {
+            if (_main?.IsVisible != true)
+            {
+                _tray?.Notify("File received", $"{name} was saved to Downloads.");
+            }
+        });
+        _server.StatusChanged += status => Dispatcher.Invoke(() =>
+        {
+            _lastStatus = status;
+            _tray?.SetStatusText(status);
+            _main?.SetStatus(status);
+        });
         try
         {
             _server.Start();
@@ -91,12 +142,8 @@ public partial class App : Application
             EventLog.Write("Clipboard listener attached (WM_CLIPBOARDUPDATE).");
         }
 
-        _tray = new TrayIconManager(
-            onStatus: ShowStatus,
-            onPairing: ShowPairing,
-            onSettings: ShowSettings,
-            onExit: Shutdown);
-        _tray.SetStatusText("Listening for clipboard changes");
+        _tray = new TrayIconManager(onOpen: ShowMain, onExit: Shutdown);
+        _tray.SetStatusText(_lastStatus);
 
         SessionEnding += (_, _) => DisposeBackground();
     }
@@ -113,70 +160,94 @@ public partial class App : Application
         if (change.Text is not null)
         {
             _server?.PublishText(change.Text);
+            _upstream?.SendText(change.Text);
         }
 
         if (change.ImageJpeg is not null)
         {
             _server?.PublishImage(change.ImageJpeg);
+            _upstream?.SendImage(change.ImageJpeg);
         }
 
         _tray?.SetStatusText(change.Summary);
     }
 
-    private void ShowStatus()
+    private void ShowMain()
     {
-        foreach (Window window in Windows)
-        {
-            if (window is StatusWindow status)
-            {
-                status.Activate();
-                return;
-            }
-        }
-
-        new StatusWindow(_history ?? new SyncHistory()).Show();
-    }
-
-    private void ShowPairing()
-    {
-        foreach (Window window in Windows)
-        {
-            if (window is PairingWindow open)
-            {
-                open.Activate();
-                return;
-            }
-        }
-
-        if (_pairing is null)
+        if (_pairing is null || _settings is null || _history is null)
         {
             return;
         }
 
-        var pairing = new PairingWindow(_pairing)
+        if (_main is null)
         {
-            TokenRegenerated = () => _server?.DisconnectAll(),
-        };
-        pairing.Show();
+            _main = new MainWindow(
+                _pairing,
+                _settings,
+                _history,
+                _transfers,
+                phoneConnected: () => _server?.HasDevice == true || _upstream?.IsReady == true,
+                sendFile: path =>
+                {
+                    if (_server?.HasDevice == true)
+                    {
+                        _ = _server.SendFileAsync(path);
+                    }
+
+                    if (_upstream?.IsReady == true)
+                    {
+                        _ = _upstream.SendFileAsync(path);
+                    }
+                },
+                disconnect: () => _server?.DisconnectAll(),
+                tokenRegenerated: () => _server?.DisconnectAll(),
+                nearby: _lan?.Hubs ?? [],
+                joinHub: hub => _upstream?.Join(hub),
+                submitPin: pin => _upstream?.SubmitPin(pin),
+                leaveHub: () => _upstream?.Leave(),
+                probeHubs: () => _lan?.Probe());
+            _main.SetStatus(_lastStatus);
+            _main.SetHubStatus(_hubStatus);
+        }
+
+        _main.BringToFront();
     }
 
-    private void ShowSettings()
+    private void ApplyUpstreamText(string name, string text)
     {
-        foreach (Window window in Windows)
+        try
         {
-            if (window is SettingsWindow open)
-            {
-                open.Activate();
-                return;
-            }
+            Clipboard.SetText(text);
+            _history?.AddText("From " + name, text);
+        }
+        catch (System.Runtime.InteropServices.ExternalException ex)
+        {
+            EventLog.Write("Could not write the Windows clipboard: " + ex.Message);
         }
 
-        if (_settings is null || _history is null)
+        _server?.RelayText(text, name);
+    }
+
+    private void ApplyUpstreamImage(string name, byte[] jpeg)
+    {
+        try
         {
-            return;
+            using var stream = new MemoryStream(jpeg);
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.StreamSource = stream;
+            image.EndInit();
+            image.Freeze();
+            Clipboard.SetImage(image);
+            _history?.AddImage("From " + name, jpeg);
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.ExternalException or IOException or NotSupportedException)
+        {
+            EventLog.Write("Could not write the Windows clipboard: " + ex.Message);
         }
 
-        new SettingsWindow(_settings, _history, () => _server?.DisconnectAll()).Show();
+        _server?.RelayImage(jpeg, name);
     }
 
     private bool AcquireSingleInstance()
@@ -195,6 +266,13 @@ public partial class App : Application
 
     private void DisposeBackground()
     {
+        if (_main is not null)
+        {
+            _main.AllowClose = true;
+            _main.Close();
+            _main = null;
+        }
+
         if (_monitor is not null)
         {
             _monitor.ClipboardChanged -= OnClipboardChanged;
@@ -204,6 +282,10 @@ public partial class App : Application
 
         _server?.Dispose();
         _server = null;
+        _upstream?.Dispose();
+        _upstream = null;
+        _lan?.Dispose();
+        _lan = null;
         _discovery?.Dispose();
         _discovery = null;
 

@@ -11,6 +11,17 @@ import kotlinx.coroutines.flow.receiveAsFlow
 sealed class OutgoingClip {
     data class Text(val text: String) : OutgoingClip()
     data class Image(val encoded: ByteArray) : OutgoingClip()
+
+    /**
+     * A file streamed in chunks. The descriptor is opened while the picker or share
+     * grant is still valid; an open descriptor keeps working after the grant ends.
+     */
+    class Attachment(
+        val name: String,
+        val size: Long,
+        val mimeType: String,
+        val descriptor: android.os.ParcelFileDescriptor,
+    ) : OutgoingClip()
 }
 
 /**

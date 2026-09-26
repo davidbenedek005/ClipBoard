@@ -44,6 +44,35 @@ object EncryptionUtil {
         return cipher.doFinal(ciphertext + tag)
     }
 
+    /**
+     * One file chunk as a binary frame: header | nonce | ciphertext | tag. The header
+     * (transfer id + index) is the GCM associated data. Same layout as Windows FileChunkCodec.
+     */
+    fun sealChunk(key: ByteArray, header: ByteArray, plain: ByteArray, length: Int): ByteArray {
+        val nonce = ByteArray(NONCE_SIZE).also { random.nextBytes(it) }
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, nonce))
+        cipher.updateAAD(header)
+        val frame = ByteArray(header.size + NONCE_SIZE + length + TAG_SIZE)
+        header.copyInto(frame)
+        nonce.copyInto(frame, header.size)
+        cipher.doFinal(plain, 0, length, frame, header.size + NONCE_SIZE)
+        return frame
+    }
+
+    /** Returns the chunk plaintext; throws [javax.crypto.AEADBadTagException] if the frame was altered. */
+    fun openChunk(key: ByteArray, frame: ByteArray, headerSize: Int): ByteArray {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, frame, headerSize, NONCE_SIZE))
+        cipher.updateAAD(frame, 0, headerSize)
+        val start = headerSize + NONCE_SIZE
+        return cipher.doFinal(frame, start, frame.size - start)
+    }
+
+    private const val NONCE_SIZE = 12
+    private const val TAG_SIZE = 16
+    private val random = java.security.SecureRandom()
+
     fun sha256Hex(data: ByteArray): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(data)
         return digest.joinToString("") { "%02x".format(it) }

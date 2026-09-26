@@ -1,21 +1,22 @@
 -- Merging decision tree log ---
 provider#androidx.core.content.FileProvider
-INJECTED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:78:9-86:20
+INJECTED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:104:9-112:20
 	android:grantUriPermissions
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:82:13-47
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:108:13-47
 	android:authorities
 		INJECTED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:80:13-57
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:106:13-57
 	android:exported
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:81:13-37
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:107:13-37
 	android:name
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:79:13-62
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:105:13-62
 manifest
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:2:1-94:12
-INJECTED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:2:1-94:12
-INJECTED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:2:1-94:12
-INJECTED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:2:1-94:12
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:2:1-120:12
+INJECTED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:2:1-120:12
+INJECTED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:2:1-120:12
+INJECTED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:2:1-120:12
 MERGED from [androidx.compose.material3:material3-android:1.3.2] C:\Users\david\.gradle\caches\8.9\transforms\cb2ee0baec974925ba45690f05808aaa\transformed\material3-release\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.compose.material:material-icons-core-android:1.7.8] C:\Users\david\.gradle\caches\8.9\transforms\a1795f6cd30769424f7117189d4aad5b\transformed\material-icons-core-release\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.compose.material:material-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\f6b12a416c14956667f9e36840e1684b\transformed\material\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.compose.animation:animation-core-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\fde43ddee4f84369edf63f09eb2dbda4\transformed\animation-core\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.compose.material:material-ripple-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\eb1277bbe35e4682221bda1c5c773137\transformed\material-ripple\AndroidManifest.xml:2:1-7:12
@@ -30,7 +31,6 @@ MERGED from [androidx.compose.ui:ui-util-android:1.9.0] C:\Users\david\.gradle\c
 MERGED from [androidx.compose.ui:ui-text-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\103ae6459c6052f75716a99a8b8c9260\transformed\ui-text\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\f67b0881ff4b5bc7885ae4a55a18367f\transformed\ui-tooling-preview\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.compose.ui:ui-tooling-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\1817781fb13480b75554c86028af52bf\transformed\ui-tooling\AndroidManifest.xml:17:1-28:12
-MERGED from [androidx.compose.material:material-icons-core-android:1.7.8] C:\Users\david\.gradle\caches\8.9\transforms\a1795f6cd30769424f7117189d4aad5b\transformed\material-icons-core-release\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.compose.ui:ui-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\21b211585b786bbb40f8df1a9fea3d5c\transformed\ui-release\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.activity:activity:1.10.1] C:\Users\david\.gradle\caches\8.9\transforms\7a6241f3acbfa1af291bf2164be22ca5\transformed\activity-1.10.1\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.activity:activity-ktx:1.10.1] C:\Users\david\.gradle\caches\8.9\transforms\66abc7a4e2da2471b99bf3707730539e\transformed\activity-ktx-1.10.1\AndroidManifest.xml:2:1-7:12
@@ -109,8 +109,8 @@ ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:15:5
 	android:name
 		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:15:22-83
 application
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:17:5-93:19
-INJECTED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:17:5-93:19
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:17:5-119:19
+INJECTED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:17:5-119:19
 MERGED from [androidx.compose.ui:ui-tooling-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\1817781fb13480b75554c86028af52bf\transformed\ui-tooling\AndroidManifest.xml:22:5-26:19
 MERGED from [androidx.compose.ui:ui-tooling-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\1817781fb13480b75554c86028af52bf\transformed\ui-tooling\AndroidManifest.xml:22:5-26:19
 MERGED from [androidx.emoji2:emoji2:1.4.0] C:\Users\david\.gradle\caches\8.9\transforms\faeb8e18292582c3bcc1961ab41d7c20\transformed\emoji2-1.4.0\AndroidManifest.xml:23:5-33:19
@@ -157,104 +157,146 @@ ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:26:9
 		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:31:13-36
 	android:name
 		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:27:13-50
-activity#com.david.clipboardsync.MainActivity
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:34:9-51:20
-	android:launchMode
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:37:13-43
+activity#com.david.clipboardsync.ShareToPcActivity
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:36:9-58:20
+	android:excludeFromRecents
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:39:13-46
+	android:noHistory
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:40:13-37
 	android:exported
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:36:13-36
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:38:13-36
+	android:theme
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:42:13-72
+	android:taskAffinity
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:41:13-36
 	android:name
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:35:13-41
-intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:38:13-41:29
-action#android.intent.action.MAIN
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:39:17-69
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:37:13-46
+intent-filter#action:name:android.intent.action.PROCESS_TEXT+category:name:android.intent.category.DEFAULT+data:mimeType:text/plain
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:43:13-47:29
+	android:label
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:43:28-62
+action#android.intent.action.PROCESS_TEXT
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:44:17-77
 	android:name
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:39:25-66
-category#android.intent.category.LAUNCHER
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:40:17-77
-	android:name
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:40:27-74
-intent-filter#action:name:android.intent.action.VIEW+category:name:android.intent.category.BROWSABLE+category:name:android.intent.category.DEFAULT+data:host:pair+data:scheme:clipboardsync
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:43:13-50:29
-action#android.intent.action.VIEW
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:44:17-69
-	android:name
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:44:25-66
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:44:25-74
 category#android.intent.category.DEFAULT
 ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:45:17-76
 	android:name
 		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:45:27-73
-category#android.intent.category.BROWSABLE
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:46:17-78
-	android:name
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:46:27-75
 data
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:47:17-49:43
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:46:17-55
 	android:host
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:49:21-40
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:75:21-40
 	android:scheme
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:48:21-51
-service#com.david.clipboardsync.service.ClipboardAccessibilityService
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:55:9-65:19
-	android:exported
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:57:13-36
-	android:permission
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:58:13-79
-	android:name
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:56:13-66
-intent-filter#action:name:android.accessibilityservice.AccessibilityService
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:59:13-61:29
-action#android.accessibilityservice.AccessibilityService
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:60:17-92
-	android:name
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:60:25-89
-meta-data#android.accessibilityservice
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:62:13-64:72
-	android:resource
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:64:17-69
-	android:name
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:63:17-60
-service#com.david.clipboardsync.service.ClipboardTileService
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:67:9-76:19
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:74:21-51
+	android:mimeType
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:46:23-52
+intent-filter#action:name:android.intent.action.SEND+category:name:android.intent.category.DEFAULT+data:mimeType:*/*
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:48:13-52:29
 	android:label
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:71:13-47
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:48:28-60
+action#android.intent.action.SEND
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:49:17-69
+	android:name
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:49:25-66
+intent-filter#action:name:android.intent.action.SEND_MULTIPLE+category:name:android.intent.category.DEFAULT+data:mimeType:*/*
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:53:13-57:29
+	android:label
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:53:28-60
+action#android.intent.action.SEND_MULTIPLE
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:54:17-78
+	android:name
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:54:25-75
+activity#com.david.clipboardsync.MainActivity
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:60:9-77:20
+	android:launchMode
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:63:13-43
 	android:exported
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:69:13-36
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:62:13-36
+	android:name
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:61:13-41
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:64:13-67:29
+action#android.intent.action.MAIN
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:65:17-69
+	android:name
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:65:25-66
+category#android.intent.category.LAUNCHER
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:66:17-77
+	android:name
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:66:27-74
+intent-filter#action:name:android.intent.action.VIEW+category:name:android.intent.category.BROWSABLE+category:name:android.intent.category.DEFAULT+data:host:pair+data:scheme:clipboardsync
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:69:13-76:29
+action#android.intent.action.VIEW
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:70:17-69
+	android:name
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:70:25-66
+category#android.intent.category.BROWSABLE
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:72:17-78
+	android:name
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:72:27-75
+service#com.david.clipboardsync.service.ClipboardAccessibilityService
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:81:9-91:19
+	android:exported
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:83:13-36
 	android:permission
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:72:13-77
-	android:icon
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:70:13-53
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:84:13-79
 	android:name
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:68:13-57
-intent-filter#action:name:android.service.quicksettings.action.QS_TILE
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:73:13-75:29
-action#android.service.quicksettings.action.QS_TILE
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:74:17-87
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:82:13-66
+intent-filter#action:name:android.accessibilityservice.AccessibilityService
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:85:13-87:29
+action#android.accessibilityservice.AccessibilityService
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:86:17-92
 	android:name
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:74:25-84
-service#com.david.clipboardsync.service.ClipboardForegroundService
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:88:9-92:56
-	android:exported
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:90:13-37
-	android:stopWithTask
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:91:13-41
-	android:foregroundServiceType
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:92:13-53
-	android:name
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:89:13-63
-meta-data#android.support.FILE_PROVIDER_PATHS
-ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:83:13-85:54
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:86:25-89
+meta-data#android.accessibilityservice
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:88:13-90:72
 	android:resource
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:85:17-51
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:90:17-69
 	android:name
-		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:84:17-67
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:89:17-60
+service#com.david.clipboardsync.service.ClipboardTileService
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:93:9-102:19
+	android:label
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:97:13-47
+	android:exported
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:95:13-36
+	android:permission
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:98:13-77
+	android:icon
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:96:13-53
+	android:name
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:94:13-57
+intent-filter#action:name:android.service.quicksettings.action.QS_TILE
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:99:13-101:29
+action#android.service.quicksettings.action.QS_TILE
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:100:17-87
+	android:name
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:100:25-84
+service#com.david.clipboardsync.service.ClipboardForegroundService
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:114:9-118:56
+	android:exported
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:116:13-37
+	android:stopWithTask
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:117:13-41
+	android:foregroundServiceType
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:118:13-53
+	android:name
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:115:13-63
+meta-data#android.support.FILE_PROVIDER_PATHS
+ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:109:13-111:54
+	android:resource
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:111:17-51
+	android:name
+		ADDED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml:110:17-67
 uses-sdk
 INJECTED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml
 INJECTED from D:\Cursor\ClipBoard\android-app\app\src\main\AndroidManifest.xml
 MERGED from [androidx.compose.material3:material3-android:1.3.2] C:\Users\david\.gradle\caches\8.9\transforms\cb2ee0baec974925ba45690f05808aaa\transformed\material3-release\AndroidManifest.xml:20:5-44
 MERGED from [androidx.compose.material3:material3-android:1.3.2] C:\Users\david\.gradle\caches\8.9\transforms\cb2ee0baec974925ba45690f05808aaa\transformed\material3-release\AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.material:material-icons-core-android:1.7.8] C:\Users\david\.gradle\caches\8.9\transforms\a1795f6cd30769424f7117189d4aad5b\transformed\material-icons-core-release\AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-core-android:1.7.8] C:\Users\david\.gradle\caches\8.9\transforms\a1795f6cd30769424f7117189d4aad5b\transformed\material-icons-core-release\AndroidManifest.xml:5:5-44
 MERGED from [androidx.compose.material:material-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\f6b12a416c14956667f9e36840e1684b\transformed\material\AndroidManifest.xml:5:5-44
 MERGED from [androidx.compose.material:material-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\f6b12a416c14956667f9e36840e1684b\transformed\material\AndroidManifest.xml:5:5-44
 MERGED from [androidx.compose.animation:animation-core-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\fde43ddee4f84369edf63f09eb2dbda4\transformed\animation-core\AndroidManifest.xml:5:5-44
@@ -283,8 +325,6 @@ MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.9.0] C:\Users\davi
 MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\f67b0881ff4b5bc7885ae4a55a18367f\transformed\ui-tooling-preview\AndroidManifest.xml:20:5-44
 MERGED from [androidx.compose.ui:ui-tooling-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\1817781fb13480b75554c86028af52bf\transformed\ui-tooling\AndroidManifest.xml:20:5-44
 MERGED from [androidx.compose.ui:ui-tooling-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\1817781fb13480b75554c86028af52bf\transformed\ui-tooling\AndroidManifest.xml:20:5-44
-MERGED from [androidx.compose.material:material-icons-core-android:1.7.8] C:\Users\david\.gradle\caches\8.9\transforms\a1795f6cd30769424f7117189d4aad5b\transformed\material-icons-core-release\AndroidManifest.xml:5:5-44
-MERGED from [androidx.compose.material:material-icons-core-android:1.7.8] C:\Users\david\.gradle\caches\8.9\transforms\a1795f6cd30769424f7117189d4aad5b\transformed\material-icons-core-release\AndroidManifest.xml:5:5-44
 MERGED from [androidx.compose.ui:ui-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\21b211585b786bbb40f8df1a9fea3d5c\transformed\ui-release\AndroidManifest.xml:5:5-44
 MERGED from [androidx.compose.ui:ui-android:1.9.0] C:\Users\david\.gradle\caches\8.9\transforms\21b211585b786bbb40f8df1a9fea3d5c\transformed\ui-release\AndroidManifest.xml:5:5-44
 MERGED from [androidx.activity:activity:1.10.1] C:\Users\david\.gradle\caches\8.9\transforms\7a6241f3acbfa1af291bf2164be22ca5\transformed\activity-1.10.1\AndroidManifest.xml:20:5-44

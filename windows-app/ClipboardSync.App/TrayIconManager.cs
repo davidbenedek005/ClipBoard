@@ -1,36 +1,33 @@
-using System.Windows;
 using System.Windows.Controls;
 using Hardcodet.Wpf.TaskbarNotification;
 
 namespace ClipboardSync.App;
 
 /// <summary>
-/// System-tray shell. The WPF main window is never shown; this icon is the UI.
-/// Right-click opens the menu. Left-click opens the status log.
+/// System-tray shell. Left-click opens the main window. The right-click menu
+/// has only Exit.
 /// </summary>
 public sealed class TrayIconManager : IDisposable
 {
     private readonly TaskbarIcon _icon;
     private bool _disposed;
 
-    public TrayIconManager(Action onStatus, Action onPairing, Action onSettings, Action onExit)
+    public TrayIconManager(Action onOpen, Action onExit)
     {
         var menu = new ContextMenu();
-        menu.Items.Add(Item("Status", onStatus));
-        menu.Items.Add(Item("Show Pairing QR", onPairing));
-        menu.Items.Add(Item("Settings", onSettings));
-        menu.Items.Add(new Separator());
-        menu.Items.Add(Item("Exit", onExit));
+        var exit = new MenuItem { Header = "Exit" };
+        exit.Click += (_, _) => onExit();
+        menu.Items.Add(exit);
 
         _icon = new TaskbarIcon
         {
             IconSource = TrayIconArtwork.Create(),
-            ToolTipText = "ClipBoard — listening for clipboard changes",
+            ToolTipText = "ClipBoard",
             ContextMenu = menu,
             MenuActivation = PopupActivationMode.RightClick,
         };
 
-        _icon.TrayLeftMouseUp += (_, _) => onStatus();
+        _icon.TrayLeftMouseUp += (_, _) => onOpen();
     }
 
     public void SetStatusText(string summary)
@@ -44,6 +41,14 @@ public sealed class TrayIconManager : IDisposable
         _icon.ToolTipText = "ClipBoard — " + text;
     }
 
+    public void Notify(string title, string text)
+    {
+        if (!_disposed)
+        {
+            _icon.ShowBalloonTip(title, text, BalloonIcon.Info);
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -53,12 +58,5 @@ public sealed class TrayIconManager : IDisposable
 
         _disposed = true;
         _icon.Dispose();
-    }
-
-    private static MenuItem Item(string header, Action action)
-    {
-        var item = new MenuItem { Header = header };
-        item.Click += (_, _) => action();
-        return item;
     }
 }

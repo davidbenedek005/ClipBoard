@@ -2,7 +2,7 @@
 ; The app is a tray program. Closing the installer does not leave a taskbar window.
 
 #define MyAppName "ClipBoard"
-#define MyAppVersion "0.4.0"
+#define MyAppVersion "1.2.0"
 #define MyAppExeName "ClipBoard.exe"
 #define PublishDir "..\ClipboardSync.App\bin\Release\net10.0-windows\win-x64\publish"
 

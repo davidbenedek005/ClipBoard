@@ -17,7 +17,7 @@ namespace ClipboardSync.App.Services;
 /// Payloads are JSON matching protocol-schema.json. Clipboard writes are posted
 /// back to the WPF STA thread because <see cref="Clipboard"/> is STA-only.
 /// </summary>
-public sealed class ClipboardWebSocketServer : IDisposable
+public sealed partial class ClipboardWebSocketServer : IDisposable
 {
     public const string TokenHeader = "X-Clipboard-Token";
 
@@ -32,7 +32,7 @@ public sealed class ClipboardWebSocketServer : IDisposable
     private readonly EchoGuard _echo;
     private readonly SyncHistory _history;
     private readonly AppSettings _settings;
-    private readonly ConcurrentDictionary<Guid, IWebSocketConnection> _clients = new();
+    private readonly FileTransferTracker _transfers;
     private WebSocketServer? _server;
     private DateTimeOffset _suppressImagesUntil;
 
@@ -41,13 +41,15 @@ public sealed class ClipboardWebSocketServer : IDisposable
         PairingService pairing,
         EchoGuard echo,
         SyncHistory history,
-        AppSettings settings)
+        AppSettings settings,
+        FileTransferTracker transfers)
     {
         _log = log;
         _pairing = pairing;
         _echo = echo;
         _history = history;
         _settings = settings;
+        _transfers = transfers;
     }
 
     public event Action<string>? StatusChanged;
@@ -62,10 +64,11 @@ public sealed class ClipboardWebSocketServer : IDisposable
             socket.OnOpen = () => OnOpen(socket);
             socket.OnClose = () => OnClose(socket);
             socket.OnMessage = message => OnMessage(socket, message);
+            socket.OnBinary = frame => OnBinary(socket, frame);
             socket.OnError = error => _log.Write("WebSocket error: " + error.Message);
         });
         _log.Write($"WebSocket server listening on port {PairingService.Port}.");
-        StatusChanged?.Invoke("Waiting for the phone");
+        StatusChanged?.Invoke("Waiting for a device");
     }
 
     public void PublishText(string text)
@@ -84,6 +87,7 @@ public sealed class ClipboardWebSocketServer : IDisposable
             Version = 1,
             Type = "text",
             OriginDeviceId = _pairing.DeviceId,
+            DeviceName = _settings.DisplayName,
             ContentHash = hash,
             Timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
             Payload = Convert.ToBase64String(ciphertext),
@@ -93,7 +97,7 @@ public sealed class ClipboardWebSocketServer : IDisposable
                 AuthTag = Convert.ToBase64String(tag),
             },
         };
-        Broadcast(JsonSerializer.Serialize(message, JsonOptions));
+        BroadcastExcept(null, JsonSerializer.Serialize(message, JsonOptions));
         _history.AddText("Sent", text);
     }
 
@@ -130,6 +134,7 @@ public sealed class ClipboardWebSocketServer : IDisposable
             Version = 1,
             Type = "image",
             OriginDeviceId = _pairing.DeviceId,
+            DeviceName = _settings.DisplayName,
             ContentHash = hash,
             Timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
             Payload = Convert.ToBase64String(ciphertext),
@@ -139,15 +144,66 @@ public sealed class ClipboardWebSocketServer : IDisposable
                 AuthTag = Convert.ToBase64String(tag),
             },
         };
-        Broadcast(JsonSerializer.Serialize(message, JsonOptions));
+        BroadcastExcept(null, JsonSerializer.Serialize(message, JsonOptions));
         _history.AddImage("Sent", jpeg);
+    }
+
+    /// <summary>Pushes text to devices paired with this PC. Used for clipboard that arrived from an upstream hub.</summary>
+    public void RelayText(string text, string? sourceName = null)
+    {
+        var plain = Encoding.UTF8.GetBytes(text);
+        var hash = EncryptionService.Sha256Hex(plain);
+        _echo.NoteSent(hash);
+        var (ciphertext, iv, tag) = EncryptionService.Encrypt(CurrentKey(), plain);
+        var message = new ClipboardPayload
+        {
+            Version = 1,
+            Type = "text",
+            OriginDeviceId = _pairing.DeviceId,
+            DeviceName = string.IsNullOrWhiteSpace(sourceName) ? _settings.DisplayName : sourceName.Trim(),
+            ContentHash = hash,
+            Timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+            Payload = Convert.ToBase64String(ciphertext),
+            Encryption = new EncryptionEnvelope { Iv = Convert.ToBase64String(iv), AuthTag = Convert.ToBase64String(tag) },
+        };
+        BroadcastExcept(null, JsonSerializer.Serialize(message, JsonOptions));
+    }
+
+    public void RelayImage(byte[] jpeg, string? sourceName = null)
+    {
+        if (!_settings.SyncImages)
+        {
+            return;
+        }
+
+        var plain = Encoding.UTF8.GetBytes(Convert.ToBase64String(jpeg));
+        var hash = EncryptionService.Sha256Hex(plain);
+        _echo.NoteSent(hash);
+        var (ciphertext, iv, tag) = EncryptionService.Encrypt(CurrentKey(), plain);
+        var message = new ClipboardPayload
+        {
+            Version = 1,
+            Type = "image",
+            OriginDeviceId = _pairing.DeviceId,
+            DeviceName = string.IsNullOrWhiteSpace(sourceName) ? _settings.DisplayName : sourceName.Trim(),
+            ContentHash = hash,
+            Timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+            Payload = Convert.ToBase64String(ciphertext),
+            Encryption = new EncryptionEnvelope { Iv = Convert.ToBase64String(iv), AuthTag = Convert.ToBase64String(tag) },
+        };
+        BroadcastExcept(null, JsonSerializer.Serialize(message, JsonOptions));
     }
 
     public void DisconnectAll()
     {
-        foreach (var client in _clients.Values.ToArray())
+        foreach (var session in _sessions.Values.ToArray())
         {
-            client.Close();
+            session.Socket.Close();
+        }
+
+        foreach (var pending in _pending.Values.ToArray())
+        {
+            pending.Socket.Close();
         }
     }
 
@@ -155,41 +211,29 @@ public sealed class ClipboardWebSocketServer : IDisposable
 
     public void Dispose()
     {
-        foreach (var client in _clients.Values)
+        foreach (var session in _sessions.Values)
         {
-            client.Close();
+            session.Socket.Close();
         }
 
-        _clients.Clear();
+        SessionsClear();
         _server?.Dispose();
         _server = null;
-    }
-
-    private void OnOpen(IWebSocketConnection socket)
-    {
-        if (!HeaderMatchesToken(socket))
+        foreach (var id in _incoming.Keys.ToArray())
         {
-            _log.Write($"Rejected WebSocket from {socket.ConnectionInfo.ClientIpAddress}: pairing token did not match.");
-            socket.Close(1008);
-            return;
+            AbortIncoming(id, "ClipBoard is closing", notifyPeer: false);
         }
-
-        _clients[socket.ConnectionInfo.Id] = socket;
-        _log.Write($"Phone connected from {socket.ConnectionInfo.ClientIpAddress}.");
-        StatusChanged?.Invoke("Phone connected");
-    }
-
-    private void OnClose(IWebSocketConnection socket)
-    {
-        _clients.TryRemove(socket.ConnectionInfo.Id, out _);
-        var status = _clients.IsEmpty ? "Phone disconnected" : "Phone connected";
-        _log.Write(status + ".");
-        StatusChanged?.Invoke(status);
     }
 
     private void OnMessage(IWebSocketConnection socket, string json)
     {
-        if (!_clients.ContainsKey(socket.ConnectionInfo.Id))
+        if (_pending.TryGetValue(socket.ConnectionInfo.Id, out var pending))
+        {
+            HandlePending(pending, json);
+            return;
+        }
+
+        if (!IsOnline(socket))
         {
             socket.Close(1008);
             return;
@@ -206,13 +250,19 @@ public sealed class ClipboardWebSocketServer : IDisposable
             return;
         }
 
+        if (message is { Version: 1 } && IsFileType(message.Type))
+        {
+            OnFileMessage(socket, message, json);
+            return;
+        }
+
         if (message is null || message.Version != 1 || (message.Type != "text" && message.Type != "image"))
         {
             _log.Write($"Dropped unsupported payload (version {message?.Version}, type {message?.Type}).");
             return;
         }
 
-        if (_echo.IsEchoOfLocalSend(message.ContentHash))
+        if (_echo.IsEchoOfLocalSend(message.ContentHash) || _echo.WasAppliedFromPeer(message.ContentHash))
         {
             return;
         }
@@ -243,11 +293,16 @@ public sealed class ClipboardWebSocketServer : IDisposable
                 return;
             }
 
+            RememberName(socket, message.DeviceName);
+            _echo.NoteApplied(message.ContentHash);
+            _echo.NoteSent(message.ContentHash);
+            BroadcastExcept(socket, json);
+
             if (message.Type == "image")
             {
-                _echo.NoteApplied(message.ContentHash);
                 _suppressImagesUntil = DateTimeOffset.UtcNow.AddSeconds(1);
                 var jpeg = Convert.FromBase64String(Encoding.UTF8.GetString(plain));
+                var from = FromDevice(message);
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     try
@@ -260,32 +315,34 @@ public sealed class ClipboardWebSocketServer : IDisposable
                         image.EndInit();
                         image.Freeze();
                         Clipboard.SetImage(image);
-                        _log.Write($"Applied image from phone, bytes={jpeg.Length}.");
-                        _history.AddImage("Received", jpeg);
+                        _log.Write($"Applied image from {from}, bytes={jpeg.Length}.");
+                        _history.AddImage(from, jpeg);
                     }
                     catch (Exception ex) when (ex is ExternalException or IOException or NotSupportedException)
                     {
                         _log.Write("Could not write the Windows clipboard: " + ex.Message);
                     }
                 });
+                ImageFromClient?.Invoke(jpeg);
                 return;
             }
 
             var text = Encoding.UTF8.GetString(plain);
-            _echo.NoteApplied(message.ContentHash);
+            var source = FromDevice(message);
             Application.Current.Dispatcher.Invoke(() =>
             {
                 try
                 {
                     Clipboard.SetText(text);
-                    _log.Write($"Applied text from phone, len={text.Length}.");
-                    _history.AddText("Received", text);
+                    _log.Write($"Applied text from {source}, len={text.Length}.");
+                    _history.AddText(source, text);
                 }
                 catch (ExternalException ex)
                 {
                     _log.Write("Could not write the Windows clipboard: " + ex.Message);
                 }
             });
+            TextFromClient?.Invoke(text);
         }
         catch (CryptographicException ex)
         {
@@ -297,35 +354,6 @@ public sealed class ClipboardWebSocketServer : IDisposable
         }
     }
 
-    private bool HeaderMatchesToken(IWebSocketConnection socket)
-    {
-        var headers = socket.ConnectionInfo.Headers;
-        if (headers is null)
-        {
-            return false;
-        }
-
-        foreach (var pair in headers)
-        {
-            if (pair.Key.Equals(TokenHeader, StringComparison.OrdinalIgnoreCase))
-            {
-                var presented = Encoding.UTF8.GetBytes(pair.Value);
-                var expected = Encoding.UTF8.GetBytes(_pairing.Token);
-                return presented.Length == expected.Length &&
-                    CryptographicOperations.FixedTimeEquals(presented, expected);
-            }
-        }
-
-        return false;
-    }
-
-    private void Broadcast(string json)
-    {
-        foreach (var client in _clients.Values)
-        {
-            client.Send(json);
-        }
-    }
 }
 
 internal static class QrImage

@@ -1,6 +1,5 @@
 package com.david.clipboardsync
 
-import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -14,14 +13,6 @@ internal object PermissionStatus {
 
     private const val ACTION_ACCESSIBILITY_DETAILS_SETTINGS =
         "android.settings.ACCESSIBILITY_DETAILS_SETTINGS"
-
-    fun notificationsGranted(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < 33) {
-            return true
-        }
-        return context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
-            android.content.pm.PackageManager.PERMISSION_GRANTED
-    }
 
     /**
      * Accessibility cannot be enabled from code. The secure setting is a colon-separated

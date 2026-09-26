@@ -23,9 +23,38 @@ public sealed class ImageHistoryEntry : HistoryEntry
     public BitmapSource? Thumbnail { get; init; }
 }
 
+public sealed class FileHistoryEntry : HistoryEntry
+{
+    public required string FileName { get; init; }
+    public required string FilePath { get; init; }
+    public required long Size { get; init; }
+    public string SizeLabel => ByteSize.Format(Size);
+
+    public string ExtensionLabel
+    {
+        get
+        {
+            var extension = Path.GetExtension(FileName).TrimStart('.').ToUpperInvariant();
+            return extension.Length is > 0 and <= 4 ? extension : "FILE";
+        }
+    }
+}
+
 public sealed class SyncHistory
 {
     public ObservableCollection<HistoryEntry> Entries { get; } = [];
+
+    public void AddFile(string direction, string path, long size)
+    {
+        Add(new FileHistoryEntry
+        {
+            At = DateTimeOffset.Now,
+            Direction = direction,
+            FileName = Path.GetFileName(path),
+            FilePath = path,
+            Size = size,
+        });
+    }
 
     public void AddText(string direction, string text)
     {
@@ -53,25 +82,39 @@ public sealed class SyncHistory
         });
     }
 
+    public void Remove(HistoryEntry entry)
+    {
+        OnUiThread(() => Entries.Remove(entry));
+    }
+
+    public void Clear()
+    {
+        OnUiThread(Entries.Clear);
+    }
+
     private void Add(HistoryEntry entry)
     {
-        void Insert()
+        OnUiThread(() =>
         {
             Entries.Insert(0, entry);
             while (Entries.Count > 20)
             {
                 Entries.RemoveAt(Entries.Count - 1);
             }
-        }
+        });
+    }
 
+    /// <summary>The server thread adds entries, so every change is marshalled to the collection's dispatcher.</summary>
+    private static void OnUiThread(Action change)
+    {
         var dispatcher = Application.Current?.Dispatcher;
         if (dispatcher is null || dispatcher.CheckAccess())
         {
-            Insert();
+            change();
         }
         else
         {
-            dispatcher.Invoke(Insert);
+            dispatcher.Invoke(change);
         }
     }
 

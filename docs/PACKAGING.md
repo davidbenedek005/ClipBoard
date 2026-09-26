@@ -72,7 +72,7 @@ Later releases reuse the same keystore. **Choose existing...** instead of creati
 
 ## Check after install
 
-- Windows tray icon is present. **Show Pairing QR** shows the address, port, and token.
+- Windows tray icon is present. Left-click it, then **Pairing** shows the QR, address, port, and token.
 - Phone notification says connected after pairing.
 - Copy text on the PC and paste on the phone.
 - Copy text on the phone, open ClipBoard, and paste on the PC.
