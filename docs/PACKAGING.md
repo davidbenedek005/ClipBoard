@@ -68,7 +68,7 @@ Later releases reuse the same keystore. **Choose existing...** instead of creati
 1. Copy `app-release.apk` to the phone (USB, or a shared folder on your LAN).
 2. Open the file on the phone. If Android blocks it, allow installs from that file manager.
 3. Install. If a debug build is already installed and the signatures differ, uninstall that debug build first. A release signature cannot update a debug-signed app.
-4. Open ClipBoard, allow notifications, turn the accessibility service back on, and pair again. The phone camera QR link and **Manual connection** both still work.
+4. Open ClipBoard and pair again. The phone camera QR link and **Manual connection** both still work.
 
 ## Check after install
 

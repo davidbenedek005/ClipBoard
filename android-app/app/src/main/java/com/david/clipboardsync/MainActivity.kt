@@ -45,7 +45,6 @@ class MainActivity : ComponentActivity() {
             val history by SyncHistory.items.collectAsStateWithLifecycle()
             val transfers by FileTransfers.active.collectAsStateWithLifecycle()
             val linkStatus by ClipboardRepository.linkStatus.collectAsStateWithLifecycle()
-            val accessibility = remember(resumeTick) { PermissionStatus.accessibilityEnabled(this) }
             val battery = remember(resumeTick) { PermissionStatus.batteryUnrestricted(this) }
             val paired = remember(resumeTick) { SyncController.loadPairing(this) != null }
             ClipBoardTheme {
@@ -56,7 +55,6 @@ class MainActivity : ComponentActivity() {
                     paired = paired,
                     history = history,
                     syncImages = syncImages,
-                    accessibilityEnabled = accessibility,
                     batteryUnrestricted = battery,
                     onCopyText = { text -> ClipboardReceiverService.applyText(this@MainActivity, text) },
                     onCopyImage = { jpeg -> ClipboardReceiverService.applyImage(this@MainActivity, jpeg) },
@@ -74,7 +72,6 @@ class MainActivity : ComponentActivity() {
                         syncImages = it
                         AppSettings(this@MainActivity).syncImages = it
                     },
-                    onOpenAccessibilitySettings = ::openAccessibilitySettings,
                     onRequestBatteryExemption = ::requestBatteryExemption,
                     onForgetPc = {
                         SyncController.disconnect(this@MainActivity)
@@ -98,7 +95,7 @@ class MainActivity : ComponentActivity() {
         resumeTick++
         // POST_NOTIFICATIONS is never requested. Without it Android 13+ still runs the
         // foreground service and only hides its notification.
-        if (PermissionStatus.accessibilityEnabled(this)) {
+        if (SyncController.loadPairing(this) != null) {
             ClipboardForegroundService.start(this)
         }
         SyncController.ensureStarted(this)
@@ -158,19 +155,6 @@ class MainActivity : ComponentActivity() {
         } catch (_: ActivityNotFoundException) {
             Toast.makeText(this, "Open the Files app to find Downloads", Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private fun openAccessibilitySettings() {
-        val details = PermissionStatus.accessibilityDetails(this)
-        if (details != null) {
-            try {
-                startActivity(details)
-                return
-            } catch (_: ActivityNotFoundException) {
-                // API 33+ devices that do not ship the details screen.
-            }
-        }
-        startActivity(PermissionStatus.accessibilitySettingsList())
     }
 
     private fun requestBatteryExemption() {

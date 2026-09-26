@@ -28,8 +28,8 @@ import com.david.clipboardsync.HistoryItem
 @Composable
 fun HistoryScreen(
     history: List<HistoryItem>,
-    setupIncomplete: Boolean,
-    onOpenSettings: () -> Unit,
+    needsBatteryExemption: Boolean,
+    onAllowBattery: () -> Unit,
     onCopyText: (String) -> Unit,
     onCopyImage: (ByteArray) -> Unit,
     onDelete: (Long) -> Unit,
@@ -48,8 +48,8 @@ fun HistoryScreen(
         items(transfers, key = { "transfer-${it.id}" }) { transfer ->
             TransferCard(transfer, onCancelTransfer, Modifier.animateItem())
         }
-        if (setupIncomplete) {
-            item(key = "setup") {
+        if (needsBatteryExemption) {
+            item(key = "battery") {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.large,
@@ -61,13 +61,13 @@ fun HistoryScreen(
                     Column(
                         modifier = Modifier.padding(start = 18.dp, end = 8.dp, top = 16.dp, bottom = 4.dp),
                     ) {
-                        Text("Finish setup", style = MaterialTheme.typography.titleMedium)
+                        Text("Keep ClipBoard connected", style = MaterialTheme.typography.titleMedium)
                         Text(
-                            "ClipBoard needs a few permissions to stay connected in the background.",
+                            "Allow ClipBoard to run in the background without battery restrictions so you can receive items instantly.",
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(top = 4.dp, end = 10.dp),
                         )
-                        TextButton(onClick = onOpenSettings) { Text("Open settings") }
+                        TextButton(onClick = onAllowBattery) { Text("Allow") }
                     }
                 }
             }

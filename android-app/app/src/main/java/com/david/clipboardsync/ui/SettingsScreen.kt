@@ -12,7 +12,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -27,10 +26,8 @@ import com.david.clipboardsync.ui.theme.ConnectedGreen
 fun SettingsScreen(
     syncImages: Boolean,
     paired: Boolean,
-    accessibilityEnabled: Boolean,
     batteryUnrestricted: Boolean,
     onSyncImages: (Boolean) -> Unit,
-    onOpenAccessibilitySettings: () -> Unit,
     onRequestBatteryExemption: () -> Unit,
     onForgetPc: () -> Unit,
     modifier: Modifier = Modifier,
@@ -54,13 +51,6 @@ fun SettingsScreen(
 
         SectionLabel("Permissions")
         SectionCard {
-            PermissionRow(
-                title = "Accessibility",
-                description = "Keeps the background connection alive.",
-                granted = accessibilityEnabled,
-                onFix = onOpenAccessibilitySettings,
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             PermissionRow(
                 title = "Battery",
                 description = "Unrestricted battery use stops Android from closing the connection.",

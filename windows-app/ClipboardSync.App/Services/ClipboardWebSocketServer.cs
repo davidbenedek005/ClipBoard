@@ -314,12 +314,14 @@ public sealed partial class ClipboardWebSocketServer : IDisposable
                         image.StreamSource = stream;
                         image.EndInit();
                         image.Freeze();
+                        _echo.ExpectIncomingImage(jpeg);
                         Clipboard.SetImage(image);
                         _log.Write($"Applied image from {from}, bytes={jpeg.Length}.");
                         _history.AddImage(from, jpeg);
                     }
                     catch (Exception ex) when (ex is ExternalException or IOException or NotSupportedException)
                     {
+                        _echo.ClearIncomingImage();
                         _log.Write("Could not write the Windows clipboard: " + ex.Message);
                     }
                 });
@@ -333,12 +335,14 @@ public sealed partial class ClipboardWebSocketServer : IDisposable
             {
                 try
                 {
+                    _echo.ExpectIncomingText(text);
                     Clipboard.SetText(text);
                     _log.Write($"Applied text from {source}, len={text.Length}.");
                     _history.AddText(source, text);
                 }
                 catch (ExternalException ex)
                 {
+                    _echo.ClearIncomingText();
                     _log.Write("Could not write the Windows clipboard: " + ex.Message);
                 }
             });

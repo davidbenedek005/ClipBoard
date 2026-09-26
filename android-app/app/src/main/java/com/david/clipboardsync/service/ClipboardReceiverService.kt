@@ -12,19 +12,21 @@ import java.io.File
 
 /**
  * PC → phone writes. [ClipboardManager.setPrimaryClip] works from the background.
- * Callers must [EchoGuard.noteApplied] before this so the accessibility listener
- * does not send the same content straight back.
+ * [EchoGuard.expectText] and [EchoGuard.expectImage] run first so a later send
+ * of this same clip is treated as an echo.
  */
 object ClipboardReceiverService {
     private const val TAG = "ClipBoardReceive"
 
     fun applyText(context: Context, text: String) {
+        EchoGuard.expectText(text)
         val clipboard = context.getSystemService(ClipboardManager::class.java)
         clipboard.setPrimaryClip(ClipData.newPlainText("ClipBoard", text))
         Log.i(TAG, "setPrimaryClip text len=${text.length}")
     }
 
     fun applyImage(context: Context, jpeg: ByteArray) {
+        EchoGuard.expectImage(jpeg)
         EchoGuard.noteApplied(EncryptionUtil.sha256Hex(jpeg))
         val dir = File(context.cacheDir, "clipboard")
         dir.mkdirs()

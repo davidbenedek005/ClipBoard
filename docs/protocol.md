@@ -66,11 +66,11 @@ One Windows PC is the hub. Phones and other PCs are spokes. They all share that 
 
 `deviceName` is the sender's display name. History shows it as "From David's Phone". Older clients omit it.
 
-A second PC finds the hub by UDP broadcast on port **53212**. The packet is `{"v":1,"kind":"hub","name","deviceId","port"}` and never includes the token. A `kind:"probe"` packet asks hubs to answer.
+A second PC joins by opening an invite link from the hub, `clipboardsync://connect?ip=192.168.1.50&port=53211&pin=123456`. The hub creates that 6-digit PIN before anyone connects. The link works once and expires after 10 minutes. The other PC can also type the IP and PIN by hand.
 
 That PC then opens a WebSocket without a token. Until the PIN succeeds, the hub accepts only these messages:
 
-- `{"v":1,"type":"pair-hello","deviceId","deviceName"}` — the hub shows a random 6-digit PIN for 90 seconds
-- `{"v":1,"type":"pair-pin","pin":"048291"}` — five tries, then the socket closes. Twenty failures from one address in ten minutes are refused
+- `{"v":1,"type":"pair-hello","deviceId","deviceName"}`
+- `{"v":1,"type":"pair-pin","pin":"048291"}` — five tries, then the socket closes. Twenty failures from one address in ten minutes are refused. The PIN has to match the one in the current invite link.
 
 On success the hub sends `{"v":1,"type":"pair-ok","token","hubDeviceId","hubName","port"}`. Later connections send that token in `X-Clipboard-Token`, plus `X-Clipboard-Device` and `X-Clipboard-Name`. Phones keep using the QR code, which already carries the token.

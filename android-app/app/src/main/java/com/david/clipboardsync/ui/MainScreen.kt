@@ -62,7 +62,6 @@ fun MainScreen(
     paired: Boolean,
     history: List<HistoryItem>,
     syncImages: Boolean,
-    accessibilityEnabled: Boolean,
     batteryUnrestricted: Boolean,
     onCopyText: (String) -> Unit,
     onCopyImage: (ByteArray) -> Unit,
@@ -77,7 +76,6 @@ fun MainScreen(
     onConnect: (ip: String, port: Int, token: String) -> Unit,
     onDisconnect: () -> Unit,
     onSyncImages: (Boolean) -> Unit,
-    onOpenAccessibilitySettings: () -> Unit,
     onRequestBatteryExemption: () -> Unit,
     onForgetPc: () -> Unit,
 ) {
@@ -149,8 +147,8 @@ fun MainScreen(
         when (selectedTab) {
             MainTab.History -> HistoryScreen(
                 history = history,
-                setupIncomplete = !accessibilityEnabled || !batteryUnrestricted,
-                onOpenSettings = { onSelectTab(MainTab.Settings) },
+                needsBatteryExemption = !batteryUnrestricted,
+                onAllowBattery = onRequestBatteryExemption,
                 onCopyText = onCopyText,
                 onCopyImage = onCopyImage,
                 onDelete = onDeleteItem,
@@ -171,10 +169,8 @@ fun MainScreen(
             MainTab.Settings -> SettingsScreen(
                 syncImages = syncImages,
                 paired = paired,
-                accessibilityEnabled = accessibilityEnabled,
                 batteryUnrestricted = batteryUnrestricted,
                 onSyncImages = onSyncImages,
-                onOpenAccessibilitySettings = onOpenAccessibilitySettings,
                 onRequestBatteryExemption = onRequestBatteryExemption,
                 onForgetPc = onForgetPc,
                 modifier = content,

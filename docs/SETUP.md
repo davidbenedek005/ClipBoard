@@ -49,12 +49,11 @@ Open the `android-app` folder in Android Studio (not the repo root) and run the 
 
 On the phone:
 
-1. Open accessibility settings from the app and turn ClipBoard on. The system screen shows why the service is requested.
-2. Accept the battery exemption. On One UI, also set ClipBoard to Unrestricted and remove it from Sleeping apps.
-3. Skip notifications. The app never asks for that permission; all feedback is by toast.
-4. Leave ClipBoard and copy text in Chrome, Messages, or Notes.
-5. Open ClipBoard again. The copy should appear under **Detected copies**. Logcat tag `ClipBoardA11y` should show the same line from when the app was backgrounded.
-6. **Simulate PC text** only writes a log line. It does not change the phone clipboard.
+1. Accept the battery exemption when History asks you to keep ClipBoard connected. On One UI, also set ClipBoard to Unrestricted and remove it from Sleeping apps.
+2. Skip notifications. The app never asks for that permission; all feedback is by toast.
+3. Leave ClipBoard and copy text in Chrome, Messages, or Notes.
+4. Open ClipBoard again and use **Send to PC** in the text-selection menu, the share sheet, or the Quick Settings tile.
+5. **Simulate PC text** only writes a log line. It does not change the phone clipboard.
 
 ## Pair and sync text (Phase 3)
 

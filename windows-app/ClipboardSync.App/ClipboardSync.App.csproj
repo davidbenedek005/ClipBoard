@@ -8,8 +8,8 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>ClipboardSync.App</RootNamespace>
     <AssemblyName>ClipBoard</AssemblyName>
-    <Version>1.2.0</Version>
-    <Description>LAN clipboard sync. Phase 4 adds images, settings, and mDNS.</Description>
+    <Version>2.0.0</Version>
+    <Description>LAN clipboard sync between Windows and Android.</Description>
     <ApplicationIcon>Resources\clipboard.ico</ApplicationIcon>
   </PropertyGroup>
 

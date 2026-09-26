@@ -14,7 +14,9 @@ object ClipboardPublisher {
         val clip = context.getSystemService(ClipboardManager::class.java).primaryClip ?: return false
         val image = imageJpeg(context, clip)
         if (image != null) {
-            publishJpeg(context, image)
+            if (image.isNotEmpty()) {
+                publishJpeg(context, image)
+            }
             return true
         }
         val text = (0 until clip.itemCount).firstNotNullOfOrNull { index ->
@@ -25,6 +27,9 @@ object ClipboardPublisher {
     }
 
     fun publishText(context: Context, text: String) {
+        if (EchoGuard.consumeText(text)) {
+            return
+        }
         ClipboardRepository.publish(OutgoingClip.Text(text))
         Toast.makeText(context, "Message copied to ClipBoard", Toast.LENGTH_SHORT).show()
     }
@@ -39,6 +44,9 @@ object ClipboardPublisher {
         } catch (_: Exception) {
             null
         } ?: return false
+        if (EchoGuard.consumeImage(raw)) {
+            return true
+        }
         val jpeg = ImageCodec.toJpeg(raw) ?: return false
         publishJpeg(context, jpeg)
         return true
@@ -59,6 +67,9 @@ object ClipboardPublisher {
                 ?: (0 until clip.itemCount).firstNotNullOfOrNull { clip.getItemAt(it).uri }
                 ?: continue
             val raw = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: continue
+            if (EchoGuard.consumeImage(raw)) {
+                return ByteArray(0)
+            }
             return ImageCodec.toJpeg(raw)
         }
         return null

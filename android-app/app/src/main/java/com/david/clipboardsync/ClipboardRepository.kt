@@ -25,9 +25,8 @@ sealed class OutgoingClip {
 }
 
 /**
- * The accessibility service only enqueues a copy. On Android 14 / One UI the
- * callback itself is often delivered only after the activity is in front, so
- * this queue is allowed to sit until then. [Channel.trySend] does not suspend.
+ * Copies are queued by the Quick Settings tile, the share sheet, or Send file.
+ * [Channel.trySend] does not suspend.
  */
 object ClipboardRepository {
     private val copies = Channel<OutgoingClip>(

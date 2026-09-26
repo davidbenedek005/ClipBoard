@@ -1,4 +1,6 @@
 ﻿using System.IO;
+using System.IO.Pipes;
+using System.Text;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using ClipboardSync.App.Models;
@@ -14,6 +16,7 @@ namespace ClipboardSync.App;
 public partial class App : Application
 {
     private const string MutexName = @"Local\ClipBoard.Sync.SingleInstance";
+    private const string InvitePipeName = "ClipBoard.Sync.Invite";
 
     private Mutex? _instanceMutex;
     private TrayIconManager? _tray;
@@ -24,10 +27,13 @@ public partial class App : Application
     private AppSettings? _settings;
     private SyncHistory? _history;
     private DiscoveryService? _discovery;
-    private LanDiscovery? _lan;
     private UpstreamClient? _upstream;
     private MainWindow? _main;
     private readonly FileTransferTracker _transfers = new();
+    private readonly CancellationTokenSource _pipeStop = new();
+    private NamedPipeServerStream? _invitePipe;
+    private InviteLink? _launchInvite;
+    private readonly ConnectionStatus _link = new();
     private string _lastStatus = "Waiting for a device";
     private string _hubStatus = "Not joined to another PC.";
 
@@ -35,8 +41,15 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        var invite = InviteLink.FromArgs(e.Args);
         if (!AcquireSingleInstance())
         {
+            if (invite is not null && ForwardInvite(e.Args))
+            {
+                Shutdown();
+                return;
+            }
+
             MessageBox.Show(
                 "ClipBoard is already running. Look for the clipboard icon in the system tray.",
                 "ClipBoard",
@@ -46,6 +59,9 @@ public partial class App : Application
             return;
         }
 
+        ProtocolRegistration.RegisterCurrentUser();
+        _launchInvite = invite;
+        StartInvitePipe();
         base.OnStartup(e);
 
         DispatcherUnhandledException += (_, args) =>
@@ -62,37 +78,26 @@ public partial class App : Application
         _settings = AppSettings.Load();
         _history = new SyncHistory();
         _server = new ClipboardWebSocketServer(EventLog, _pairing, _echo, _history, _settings, _transfers);
-        _server.PinRequested += challenge => Dispatcher.BeginInvoke(() =>
-        {
-            ShowMain();
-            PinPrompt.Show(challenge);
-        });
-        _server.PinCleared += id => Dispatcher.BeginInvoke(() => PinPrompt.Close(id));
+        _server.InviteChanged += () => Dispatcher.BeginInvoke(() => _main?.RefreshInvite());
         _server.TextFromClient += text => _upstream?.ForwardText(text);
         _server.ImageFromClient += jpeg => _upstream?.ForwardImage(jpeg);
         _upstream = new UpstreamClient(_pairing, _settings, _echo, _history, _transfers, EventLog);
-        _upstream.PinNeeded += () => Dispatcher.BeginInvoke(() =>
-        {
-            ShowMain();
-            _main?.PromptForPin();
-        });
         _upstream.StatusChanged += status => Dispatcher.BeginInvoke(() =>
         {
             _hubStatus = status;
             _main?.SetHubStatus(status);
         });
+        _upstream.ReadyChanged += joined => Dispatcher.BeginInvoke(() =>
+        {
+            _link.NoteHub(joined);
+            _tray?.SetStatusText(_link.Text);
+        });
         _upstream.TextReceived += (name, text) => Dispatcher.Invoke(() => ApplyUpstreamText(name, text));
         _upstream.ImageReceived += (name, jpeg) => Dispatcher.Invoke(() => ApplyUpstreamImage(name, jpeg));
-        try
+        if (_launchInvite is null)
         {
-            _lan = new LanDiscovery(_pairing.DeviceId, () => _settings.DisplayName);
+            _upstream.ConnectSaved();
         }
-        catch (Exception ex)
-        {
-            EventLog.Write("LAN discovery did not start: " + ex.Message);
-        }
-
-        _upstream.ConnectSaved();
         _server.FileReceived += name => Dispatcher.BeginInvoke(() =>
         {
             if (_main?.IsVisible != true)
@@ -103,8 +108,8 @@ public partial class App : Application
         _server.StatusChanged += status => Dispatcher.Invoke(() =>
         {
             _lastStatus = status;
-            _tray?.SetStatusText(status);
-            _main?.SetStatus(status);
+            _link.NoteServer(status);
+            _tray?.SetStatusText(_link.Text);
         });
         try
         {
@@ -142,8 +147,13 @@ public partial class App : Application
             EventLog.Write("Clipboard listener attached (WM_CLIPBOARDUPDATE).");
         }
 
-        _tray = new TrayIconManager(onOpen: ShowMain, onExit: Shutdown);
+        _tray = new TrayIconManager(onOpen: () => ShowMain(), onExit: Shutdown);
         _tray.SetStatusText(_lastStatus);
+
+        if (_launchInvite is not null)
+        {
+            ShowMain(_launchInvite);
+        }
 
         SessionEnding += (_, _) => DisposeBackground();
     }
@@ -157,13 +167,17 @@ public partial class App : Application
     private void OnClipboardChanged(object? sender, ClipboardChange change)
     {
         EventLog.Write(change.ToString());
-        if (change.Text is not null)
+        var textEcho = change.Text is not null && _echo?.ConsumeIncomingText(change.Text) == true;
+        var imageEcho = change.ImageJpeg is not null && _echo?.ConsumeIncomingImage(change.ImageJpeg) == true;
+        if (!textEcho &&
+            change.Text is not null &&
+            !change.Text.TrimStart().StartsWith("clipboardsync://", StringComparison.OrdinalIgnoreCase))
         {
             _server?.PublishText(change.Text);
             _upstream?.SendText(change.Text);
         }
 
-        if (change.ImageJpeg is not null)
+        if (!imageEcho && change.ImageJpeg is not null)
         {
             _server?.PublishImage(change.ImageJpeg);
             _upstream?.SendImage(change.ImageJpeg);
@@ -172,7 +186,7 @@ public partial class App : Application
         _tray?.SetStatusText(change.Summary);
     }
 
-    private void ShowMain()
+    private void ShowMain(InviteLink? invite = null)
     {
         if (_pairing is null || _settings is null || _history is null)
         {
@@ -201,27 +215,99 @@ public partial class App : Application
                 },
                 disconnect: () => _server?.DisconnectAll(),
                 tokenRegenerated: () => _server?.DisconnectAll(),
-                nearby: _lan?.Hubs ?? [],
-                joinHub: hub => _upstream?.Join(hub),
-                submitPin: pin => _upstream?.SubmitPin(pin),
+                link: _link,
+                currentInvite: () => _server?.CurrentInvite(),
+                joinPc: (ip, port, pin) => _upstream?.Join(ip, port, pin),
                 leaveHub: () => _upstream?.Leave(),
-                probeHubs: () => _lan?.Probe());
-            _main.SetStatus(_lastStatus);
+                autoJoin: invite);
             _main.SetHubStatus(_hubStatus);
+        }
+        else if (invite is not null)
+        {
+            _main.BeginJoin(invite);
         }
 
         _main.BringToFront();
+    }
+
+    private void StartInvitePipe()
+    {
+        _ = Task.Run(() =>
+        {
+            while (!_pipeStop.IsCancellationRequested)
+            {
+                NamedPipeServerStream? pipe = null;
+                try
+                {
+                    pipe = new NamedPipeServerStream(
+                        InvitePipeName,
+                        PipeDirection.In,
+                        maxNumberOfServerInstances: 1,
+                        PipeTransmissionMode.Byte,
+                        PipeOptions.Asynchronous);
+                    _invitePipe = pipe;
+                    pipe.WaitForConnection();
+                    using var reader = new StreamReader(pipe, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 1024, leaveOpen: true);
+                    var line = reader.ReadLine();
+                    var invite = InviteLink.Parse(line);
+                    if (invite is not null)
+                    {
+                        Dispatcher.BeginInvoke(() => ShowMain(invite));
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException)
+                {
+                    if (_pipeStop.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                }
+                finally
+                {
+                    pipe?.Dispose();
+                    if (ReferenceEquals(_invitePipe, pipe))
+                    {
+                        _invitePipe = null;
+                    }
+                }
+            }
+        });
+    }
+
+    private static bool ForwardInvite(string[] args)
+    {
+        var raw = args.FirstOrDefault(arg =>
+            arg.Contains("clipboardsync:", StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var pipe = new NamedPipeClientStream(".", InvitePipeName, PipeDirection.Out);
+            pipe.Connect(2000);
+            using var writer = new StreamWriter(pipe, Encoding.UTF8) { AutoFlush = true };
+            writer.WriteLine(raw.Trim().Trim('"'));
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or TimeoutException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     private void ApplyUpstreamText(string name, string text)
     {
         try
         {
+            _echo?.ExpectIncomingText(text);
             Clipboard.SetText(text);
             _history?.AddText("From " + name, text);
         }
         catch (System.Runtime.InteropServices.ExternalException ex)
         {
+            _echo?.ClearIncomingText();
             EventLog.Write("Could not write the Windows clipboard: " + ex.Message);
         }
 
@@ -239,11 +325,13 @@ public partial class App : Application
             image.StreamSource = stream;
             image.EndInit();
             image.Freeze();
+            _echo?.ExpectIncomingImage(jpeg);
             Clipboard.SetImage(image);
             _history?.AddImage("From " + name, jpeg);
         }
         catch (Exception ex) when (ex is System.Runtime.InteropServices.ExternalException or IOException or NotSupportedException)
         {
+            _echo?.ClearIncomingImage();
             EventLog.Write("Could not write the Windows clipboard: " + ex.Message);
         }
 
@@ -280,12 +368,19 @@ public partial class App : Application
             _monitor = null;
         }
 
+        _pipeStop.Cancel();
+        try
+        {
+            _invitePipe?.Dispose();
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException)
+        {
+        }
+
         _server?.Dispose();
         _server = null;
         _upstream?.Dispose();
         _upstream = null;
-        _lan?.Dispose();
-        _lan = null;
         _discovery?.Dispose();
         _discovery = null;
 

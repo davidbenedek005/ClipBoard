@@ -18,6 +18,7 @@ project.lock.json
 
 # Android / Gradle
 .gradle/
+build/
 local.properties
 **/captures/
 *.apk

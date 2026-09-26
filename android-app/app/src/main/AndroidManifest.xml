@@ -76,20 +76,6 @@
             </intent-filter>
         </activity>
 
-        <!-- exported=true is required: the system binds this service from Settings.
-             The BIND_ACCESSIBILITY_SERVICE permission keeps other apps from binding. -->
-        <service
-            android:name=".service.ClipboardAccessibilityService"
-            android:exported="true"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service_config" />
-        </service>
-
         <service
             android:name=".service.ClipboardTileService"
             android:exported="true"

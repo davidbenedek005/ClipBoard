@@ -25,35 +25,70 @@ internal sealed class PendingPair
     public int Attempts { get; set; }
 }
 
-public readonly record struct PinChallenge(Guid ConnectionId, string DeviceName, string Pin);
+public sealed record InviteCode(string Ip, string Pin);
 
 public sealed partial class ClipboardWebSocketServer
 {
     public const string DeviceHeader = "X-Clipboard-Device";
     public const string NameHeader = "X-Clipboard-Name";
+    private static readonly TimeSpan InviteLifetime = TimeSpan.FromMinutes(10);
 
     private readonly ConcurrentDictionary<string, ClientSession> _sessions = new();
     private readonly ConcurrentDictionary<Guid, PendingPair> _pending = new();
     private readonly ConcurrentDictionary<string, (int Fails, DateTimeOffset Window)> _pinFails = new();
+    private string? _invitePin;
+    private DateTimeOffset _inviteExpires;
 
     public bool HasDevice => !_sessions.IsEmpty;
 
-    public event Action<PinChallenge>? PinRequested;
-
-    public event Action<Guid>? PinCleared;
+    public event Action? InviteChanged;
 
     /// <summary>Plaintext from a paired phone or PC, already accepted. The app forwards it to an upstream hub.</summary>
     public event Action<string>? TextFromClient;
 
     public event Action<byte[]>? ImageFromClient;
 
-    private void SessionsClear()
+    /// <summary>
+    /// Invite link for another PC. The PIN is created here, before anyone connects,
+    /// so the link can carry it. It expires after 10 minutes and after one success.
+    /// </summary>
+    public InviteCode? CurrentInvite()
     {
-        foreach (var id in _pending.Keys)
+        var ip = _pairing.LanAddress;
+        if (string.IsNullOrWhiteSpace(ip))
         {
-            PinCleared?.Invoke(id);
+            return null;
         }
 
+        EnsureInvite();
+        return new InviteCode(ip, _invitePin!);
+    }
+
+    public string? InviteUri()
+    {
+        var invite = CurrentInvite();
+        return invite is null ? null : new InviteLink(invite.Ip, PairingService.Port, invite.Pin).ToString();
+    }
+
+    public void RotateInvite()
+    {
+        _invitePin = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+        _inviteExpires = DateTimeOffset.UtcNow.Add(InviteLifetime);
+        InviteChanged?.Invoke();
+    }
+
+    private void EnsureInvite()
+    {
+        if (_invitePin is not null && DateTimeOffset.UtcNow < _inviteExpires)
+        {
+            return;
+        }
+
+        RotateInvite();
+    }
+
+    private void SessionsClear()
+    {
         _sessions.Clear();
         _pending.Clear();
     }
@@ -93,10 +128,7 @@ public sealed partial class ClipboardWebSocketServer
 
     private void OnClose(IWebSocketConnection socket)
     {
-        if (_pending.TryRemove(socket.ConnectionInfo.Id, out _))
-        {
-            PinCleared?.Invoke(socket.ConnectionInfo.Id);
-        }
+        _pending.TryRemove(socket.ConnectionInfo.Id, out _);
 
         var gone = _sessions.FirstOrDefault(pair => pair.Value.Socket.ConnectionInfo.Id == socket.ConnectionInfo.Id);
         if (!string.IsNullOrEmpty(gone.Key))
@@ -195,10 +227,7 @@ public sealed partial class ClipboardWebSocketServer
 
             pending.DeviceId = deviceId;
             pending.DeviceName = string.IsNullOrWhiteSpace(deviceName) ? "PC" : deviceName.Trim();
-            pending.Pin = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
-            pending.Expires = DateTimeOffset.UtcNow.AddSeconds(90);
             pending.Attempts = 0;
-            PinRequested?.Invoke(new PinChallenge(pending.Socket.ConnectionInfo.Id, pending.DeviceName, pending.Pin));
             return true;
         }
 
@@ -209,16 +238,16 @@ public sealed partial class ClipboardWebSocketServer
         }
 
         var pin = root.TryGetProperty("pin", out var pinElement) ? pinElement.GetString() ?? "" : "";
-        if (pending.Pin is null || DateTimeOffset.UtcNow > pending.Expires || pending.DeviceId is null)
+        if (_invitePin is null || DateTimeOffset.UtcNow > _inviteExpires || pending.DeviceId is null)
         {
-            SendPair(pending, new { v = 1, type = "pair-reject", reason = "That PIN expired. Try connecting again." });
+            SendPair(pending, new { v = 1, type = "pair-reject", reason = "That link expired. Copy a new one on the other PC." });
             pending.Socket.Close(1008);
             return true;
         }
 
         pending.Attempts++;
         var presented = Encoding.UTF8.GetBytes(pin.Trim());
-        var expected = Encoding.UTF8.GetBytes(pending.Pin);
+        var expected = Encoding.UTF8.GetBytes(_invitePin);
         var matches = presented.Length == expected.Length && CryptographicOperations.FixedTimeEquals(presented, expected);
         if (!matches)
         {
@@ -247,7 +276,7 @@ public sealed partial class ClipboardWebSocketServer
         });
         var connectionId = pending.Socket.ConnectionInfo.Id;
         _pending.TryRemove(connectionId, out _);
-        PinCleared?.Invoke(connectionId);
+        RotateInvite();
         RememberSession(pending.Socket, pending.DeviceId, pending.DeviceName);
         return true;
     }

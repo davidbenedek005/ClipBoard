@@ -3,7 +3,6 @@ using System.Net.WebSockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Windows;
 using ClipboardSync.App.Models;
 
 namespace ClipboardSync.App.Services;
@@ -34,7 +33,7 @@ public sealed class UpstreamClient : IDisposable
 
     private ClientWebSocket? _socket;
     private CancellationTokenSource _life = new();
-    private TaskCompletionSource<string?>? _pinWait;
+    private string? _pairingPin;
     private SavedHub? _hub;
     private bool _ready;
     private bool _leaveRequested;
@@ -61,9 +60,9 @@ public sealed class UpstreamClient : IDisposable
 
     public string? HubName => _hub?.HubName;
 
-    public event Action? PinNeeded;
-
     public event Action<string>? StatusChanged;
+
+    public event Action<bool>? ReadyChanged;
 
     public event Action<string, string>? TextReceived;
 
@@ -80,22 +79,19 @@ public sealed class UpstreamClient : IDisposable
         _ = RunAsync(_hub, pairing: false);
     }
 
-    public void Join(DiscoveredHub hub)
+    public void Join(string ip, int port, string pin)
     {
         _leaveRequested = false;
-        _hub = new SavedHub(hub.DeviceId, hub.Name, hub.Ip, hub.Port, Token: "");
+        _pairingPin = pin.Trim();
+        _hub = new SavedHub("", "PC", ip, port, Token: "");
+        StatusChanged?.Invoke($"Connecting to {ip}…");
         _ = RunAsync(_hub, pairing: true);
-    }
-
-    public void SubmitPin(string pin)
-    {
-        _pinWait?.TrySetResult(pin.Trim());
     }
 
     public void Leave()
     {
         _leaveRequested = true;
-        _ready = false;
+        SetReady(false);
         _hub = null;
         SavedHub.Delete();
         CancelLife();
@@ -142,6 +138,17 @@ public sealed class UpstreamClient : IDisposable
         CancelLife();
         _sendLock.Dispose();
         _fileGate.Dispose();
+    }
+
+    private void SetReady(bool ready)
+    {
+        if (_ready == ready)
+        {
+            return;
+        }
+
+        _ready = ready;
+        ReadyChanged?.Invoke(ready);
     }
 
     private void SendClipboard(string type, byte[] plain, bool fromClipboard)
@@ -192,13 +199,10 @@ public sealed class UpstreamClient : IDisposable
                     deviceId = _local.DeviceId,
                     deviceName = _settings.DisplayName,
                 })).ConfigureAwait(false);
-                StatusChanged?.Invoke($"Enter the PIN shown on {hub.HubName}");
-                Application.Current?.Dispatcher.BeginInvoke(() => PinNeeded?.Invoke());
-                _pinWait = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
-                var pin = await _pinWait.Task.WaitAsync(TimeSpan.FromSeconds(90), token).ConfigureAwait(false);
+                var pin = _pairingPin;
                 if (string.IsNullOrEmpty(pin))
                 {
-                    StatusChanged?.Invoke("Pairing cancelled");
+                    StatusChanged?.Invoke("That invite link has no PIN");
                     return;
                 }
 
@@ -215,7 +219,7 @@ public sealed class UpstreamClient : IDisposable
                 _hub.Save();
             }
 
-            _ready = true;
+            SetReady(true);
             StatusChanged?.Invoke($"Joined {_hub?.HubName}");
             _log.Write($"Joined hub {_hub?.HubName} at {hub.Ip}.");
             await ReadLoopAsync(socket, token).ConfigureAwait(false);
@@ -230,7 +234,7 @@ public sealed class UpstreamClient : IDisposable
         }
         finally
         {
-            _ready = false;
+            SetReady(false);
             lock (_gate)
             {
                 if (_socket is { State: WebSocketState.Open })
@@ -673,7 +677,6 @@ public sealed class UpstreamClient : IDisposable
         var previous = _life;
         _life = new CancellationTokenSource();
         previous.Cancel();
-        _pinWait?.TrySetResult(null);
         lock (_gate)
         {
             if (_socket is { State: WebSocketState.Open })

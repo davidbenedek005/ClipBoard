@@ -122,9 +122,20 @@
             <DockPanel Margin="16,24,16,20">
                 <StackPanel DockPanel.Dock="Top" Margin="8,0,0,28">
                     <TextBlock FontSize="20" FontWeight="SemiBold" Text="ClipBoard" />
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                        <Ellipse x:Name="StatusDot" Width="8" Height="8" Fill="#9AA4B1" VerticalAlignment="Center" />
-                        <TextBlock x:Name="StatusText" Margin="8,0,0,0" Style="{StaticResource Caption}" Text="Waiting for a device" />
+                    <StackPanel x:Name="StatusRow" Orientation="Horizontal" Margin="0,8,0,0">
+                        <Ellipse Width="8" Height="8" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#9AA4B1" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                            <Setter Property="Fill" Value="#10893E" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Margin="8,0,0,0" Style="{StaticResource Caption}" Text="{Binding Text, FallbackValue=Waiting for a device}" />
                     </StackPanel>
                 </StackPanel>
                 <StackPanel>
@@ -183,7 +194,7 @@
             <ScrollViewer x:Name="PairingPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="36,32,36,32">
                     <TextBlock Style="{StaticResource PageTitle}" Text="Pairing" />
-                    <TextBlock Style="{StaticResource PageSubtitle}" Text="Scan the code with the phone camera, or type the connection details in ClipBoard on the phone." />
+                    <TextBlock Style="{StaticResource PageSubtitle}" Text="Scan the code with the phone camera, or open an invite link on another PC." />
                     <WrapPanel>
                         <Border Style="{StaticResource Card}" Margin="0,0,20,20" Padding="24">
                             <StackPanel>
@@ -215,21 +226,49 @@
 
                     <Border Style="{StaticResource Card}" Margin="0,20,0,0" MaxWidth="680" HorizontalAlignment="Left">
                         <StackPanel>
-                            <TextBlock Style="{StaticResource SectionTitle}" Text="Nearby PCs" />
-                            <TextBlock Margin="0,4,0,12" Style="{StaticResource Caption}"
-                                       Text="Pick another PC running ClipBoard. It will show a 6-digit PIN. Enter that PIN here. Phones still use the QR code above." />
-                            <ListBox x:Name="HubList" Height="150" DisplayMemberPath="Label" />
-                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                <Button Style="{StaticResource AccentButton}" Content="Connect" Click="JoinHub_Click" />
-                                <Button Margin="8,0,0,0" Style="{StaticResource SubtleButton}" Content="Refresh" Click="ProbeHubs_Click" />
-                                <Button Margin="8,0,0,0" Style="{StaticResource SubtleButton}" Content="Leave" Click="LeaveHub_Click" />
+                            <TextBlock Style="{StaticResource SectionTitle}" Text="Invite another PC" />
+                            <TextBlock Margin="0,4,0,16" Style="{StaticResource Caption}"
+                                       Text="On the other PC, enter this address and PIN. The PIN works once, for 10 minutes. Phones still use the QR code above." />
+                            <TextBlock Style="{StaticResource Caption}" Text="IP address" />
+                            <TextBlock x:Name="ServerIpText" Margin="0,4,0,14" FontSize="22" FontWeight="SemiBold" Text="—" />
+                            <TextBlock Style="{StaticResource Caption}" Text="PIN" />
+                            <TextBlock x:Name="ServerPinText" Margin="0,4,0,0" FontSize="40" FontWeight="SemiBold" Text="------" />
+
+                            <StackPanel x:Name="ClientJoin" Margin="0,20,0,0">
+                                <TextBlock Style="{StaticResource SectionTitle}" Text="Join a PC" />
+                                <StackPanel>
+                                    <StackPanel.Style>
+                                        <Style TargetType="StackPanel">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsJoined}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </StackPanel.Style>
+                                    <TextBlock Margin="0,4,0,12" Style="{StaticResource Caption}"
+                                               Text="Type the IP address and PIN shown on the other PC." />
+                                    <TextBlock Style="{StaticResource Caption}" Text="IP address" />
+                                    <TextBox x:Name="ManualIp" Margin="0,4,0,10" Padding="10,8" />
+                                    <TextBlock Style="{StaticResource Caption}" Text="PIN" />
+                                    <TextBox x:Name="ManualPin" Margin="0,4,0,12" Padding="10,8" MaxLength="6" />
+                                    <Button HorizontalAlignment="Left" Style="{StaticResource AccentButton}" Content="Connect" Click="JoinManual_Click" />
+                                </StackPanel>
+                                <Button HorizontalAlignment="Left" Content="Disconnect" Click="LeaveHub_Click">
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource SubtleButton}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsJoined}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <TextBlock x:Name="HubStatus" Margin="0,12,0,0" Style="{StaticResource Caption}" Text="Not joined to another PC." />
                             </StackPanel>
-                            <StackPanel x:Name="PinEntry" Visibility="Collapsed" Margin="0,16,0,0">
-                                <TextBlock x:Name="PinHint" Style="{StaticResource Caption}" Text="PIN shown on the other PC" />
-                                <TextBox x:Name="PinBox" Margin="0,6,0,10" MaxLength="6" FontSize="22" Padding="10,6" />
-                                <Button HorizontalAlignment="Left" Style="{StaticResource AccentButton}" Content="Pair" Click="SubmitPin_Click" />
-                            </StackPanel>
-                            <TextBlock x:Name="HubStatus" Margin="0,12,0,0" Style="{StaticResource Caption}" Text="Not joined to another PC." />
                         </StackPanel>
                     </Border>
                 </StackPanel>

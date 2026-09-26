@@ -23,10 +23,10 @@ public partial class MainWindow : Window
     private readonly Action<string> _sendFile;
     private readonly Action _disconnect;
     private readonly Action _tokenRegenerated;
-    private readonly Action<DiscoveredHub> _joinHub;
-    private readonly Action<string> _submitPin;
+    private readonly Func<InviteCode?> _currentInvite;
+    private readonly Action<string, int, string> _joinPc;
     private readonly Action _leaveHub;
-    private readonly Action _probeHubs;
+    private readonly InviteLink? _autoJoin;
 
     public MainWindow(
         PairingService pairing,
@@ -37,11 +37,11 @@ public partial class MainWindow : Window
         Action<string> sendFile,
         Action disconnect,
         Action tokenRegenerated,
-        System.Collections.ObjectModel.ObservableCollection<DiscoveredHub> nearby,
-        Action<DiscoveredHub> joinHub,
-        Action<string> submitPin,
+        ConnectionStatus link,
+        Func<InviteCode?> currentInvite,
+        Action<string, int, string> joinPc,
         Action leaveHub,
-        Action probeHubs)
+        InviteLink? autoJoin)
     {
         _pairing = pairing;
         _settings = settings;
@@ -50,11 +50,13 @@ public partial class MainWindow : Window
         _sendFile = sendFile;
         _disconnect = disconnect;
         _tokenRegenerated = tokenRegenerated;
-        _joinHub = joinHub;
-        _submitPin = submitPin;
+        _currentInvite = currentInvite;
+        _joinPc = joinPc;
         _leaveHub = leaveHub;
-        _probeHubs = probeHubs;
+        _autoJoin = autoJoin;
         InitializeComponent();
+        StatusRow.DataContext = link;
+        ClientJoin.DataContext = link;
 
         TransferList.ItemsSource = transfers.Active;
         HistoryList.ItemsSource = history.Entries;
@@ -63,9 +65,12 @@ public partial class MainWindow : Window
 
         SyncImagesToggle.IsChecked = settings.SyncImages;
         DeviceNameBox.Text = settings.DisplayName;
-        HubList.ItemsSource = nearby;
         AutoStartToggle.IsChecked = StartupRegistration.IsEnabled();
         RenderPairing();
+        if (_autoJoin is not null)
+        {
+            Loaded += (_, _) => BeginJoin(_autoJoin);
+        }
     }
 
     public bool AllowClose { get; set; }
@@ -82,15 +87,6 @@ public partial class MainWindow : Window
         Topmost = true;
         Topmost = false;
         Focus();
-    }
-
-    public void SetStatus(string status)
-    {
-        StatusText.Text = status;
-        var live = status.Contains("device connected", StringComparison.OrdinalIgnoreCase);
-        StatusDot.Fill = live
-            ? new SolidColorBrush(Color.FromRgb(0x10, 0x89, 0x3E))
-            : new SolidColorBrush(Color.FromRgb(0x9A, 0xA4, 0xB1));
     }
 
     protected override void OnClosing(CancelEventArgs e)
@@ -117,7 +113,6 @@ public partial class MainWindow : Window
         if (sender == NavPairing)
         {
             RenderPairing();
-            _probeHubs();
         }
     }
 
@@ -273,6 +268,7 @@ public partial class MainWindow : Window
             lightColorRgba: [255, 255, 255, 255],
             drawQuietZones: true);
         QrImage.Source = global::ClipboardSync.App.Services.QrImage.FromPng(png);
+        RefreshInvite();
     }
 
     private void Regenerate_Click(object sender, RoutedEventArgs e)
@@ -298,38 +294,43 @@ public partial class MainWindow : Window
         HubStatus.Text = status;
     }
 
-    public void PromptForPin()
+    public void RefreshInvite()
     {
-        NavPairing.IsChecked = true;
-        PinEntry.Visibility = Visibility.Visible;
-        PinHint.Text = "Enter the 6-digit PIN shown on the other PC.";
-        PinBox.Text = "";
-        PinBox.Focus();
+        var invite = _currentInvite();
+        ServerIpText.Text = invite?.Ip ?? "No LAN address";
+        ServerPinText.Text = invite?.Pin ?? "------";
     }
 
-    private void JoinHub_Click(object sender, RoutedEventArgs e)
+    /// <summary>Opens Pairing and connects with the IP and PIN from an invite link. No extra click.</summary>
+    public void BeginJoin(InviteLink invite)
     {
-        if (HubList.SelectedItem is not DiscoveredHub hub)
+        NavPairing.IsChecked = true;
+        SetHubStatus($"Connecting to {invite.Ip}…");
+        _joinPc(invite.Ip, invite.Port, invite.Pin);
+    }
+
+    private void JoinManual_Click(object sender, RoutedEventArgs e)
+    {
+        var ip = ManualIp.Text.Trim();
+        var pin = ManualPin.Text.Trim();
+        if (!System.Net.IPAddress.TryParse(ip, out var address) || address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
         {
-            MessageBox.Show(this, "Select a PC from the list first.", "ClipBoard", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, "Enter the IPv4 address shown on the other PC.", "ClipBoard", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
-        PinEntry.Visibility = Visibility.Collapsed;
-        _joinHub(hub);
-    }
+        if (pin.Length != 6 || !pin.All(char.IsDigit))
+        {
+            MessageBox.Show(this, "Enter the 6-digit PIN shown on the other PC.", "ClipBoard", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
 
-    private void ProbeHubs_Click(object sender, RoutedEventArgs e) => _probeHubs();
+        BeginJoin(new InviteLink(ip, PairingService.Port, pin));
+    }
 
     private void LeaveHub_Click(object sender, RoutedEventArgs e)
     {
-        PinEntry.Visibility = Visibility.Collapsed;
         _leaveHub();
-    }
-
-    private void SubmitPin_Click(object sender, RoutedEventArgs e)
-    {
-        _submitPin(PinBox.Text);
     }
 
     private void DeviceName_LostFocus(object sender, RoutedEventArgs e)
